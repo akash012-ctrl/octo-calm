@@ -1,24 +1,55 @@
+/**
+ * Client-side Appwrite SDK
+ * 
+ * SECURITY GUIDELINES:
+ * ==================
+ * ✅ SAFE: Use in Client Components for user-facing features
+ * ✅ SAFE: Only uses NEXT_PUBLIC_* environment variables
+ * ❌ NEVER: Include API keys or server-side secrets
+ * ❌ NEVER: Access sensitive user data directly
+ * 
+ * This client is initialized ONCE using the singleton pattern.
+ * Always import from this file - never create new Client instances.
+ * 
+ * For server-side operations with elevated privileges, use:
+ * @see ./server.ts
+ */
+
 import { Client, Account, Databases, Storage } from 'appwrite';
 
-// Appwrite configuration
-const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
+// Validate required environment variables
+if (!process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT) {
+    throw new Error('NEXT_PUBLIC_APPWRITE_ENDPOINT is required');
+}
 
-// Initialize Appwrite Client
-const client = new Client();
+if (!process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
+    throw new Error('NEXT_PUBLIC_APPWRITE_PROJECT_ID is required');
+}
 
-client
-    .setEndpoint(APPWRITE_ENDPOINT)
-    .setProject(APPWRITE_PROJECT_ID);
+/**
+ * Singleton Appwrite client for browser use
+ * Initialized once and reused throughout the application
+ */
+let clientInstance: Client | null = null;
 
-// Export services
+function getClientInstance(): Client {
+    if (!clientInstance) {
+        clientInstance = new Client()
+            .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+            .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+    }
+    return clientInstance;
+}
+
+// Export singleton client instance
+export const client = getClientInstance();
+
+// Export service instances (initialized once)
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
 
-export { client };
-
-// Database and Collection IDs
+// Database and Collection IDs (safe to expose as NEXT_PUBLIC_*)
 export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'octo_calm_db';
 
 export const COLLECTION_IDS = {
