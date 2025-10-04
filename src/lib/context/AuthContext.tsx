@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Models } from "appwrite";
-import { getCurrentUser } from "@/lib/appwrite/auth";
+import { getCurrentUser } from "@/lib/appwrite/auth-new";
 
 interface AuthContextType {
   user: Models.User<Models.Preferences> | null;

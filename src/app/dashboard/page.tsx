@@ -1,8 +1,9 @@
 "use client";
 
 import { useAuth } from "@/lib/context/AuthContext";
-import { signOut } from "@/lib/appwrite/auth";
+import { signOut } from "@/lib/appwrite/auth-new";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,10 +13,43 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import AuthLoading from "@/components/shared/AuthLoading";
+import {
+  MoodCheckInForm,
+  MoodHistory,
+  MoodChart,
+} from "@/components/features/mood-tracker";
+import { useMoodCheckIns } from "@/lib/hooks/useMoodCheckIns";
+import { format, isToday } from "date-fns";
+import { Heart, TrendingUp } from "lucide-react";
 
 export default function DashboardPage() {
   const { user, loading, setUser } = useAuth();
   const router = useRouter();
+  const {
+    checkIns,
+    isLoading: checkInsLoading,
+    error,
+    submitCheckIn,
+    fetchCheckIns,
+    loadMore,
+    hasMore,
+  } = useMoodCheckIns();
+
+  const [showCheckInForm, setShowCheckInForm] = useState(false);
+
+  // Fetch check-ins on mount
+  useEffect(() => {
+    if (user) {
+      fetchCheckIns("30days");
+    }
+  }, [user, fetchCheckIns]);
+
+  // Check if user has completed check-in today
+  const hasCheckedInToday = checkIns.some((checkIn) =>
+    isToday(new Date(checkIn.timestamp))
+  );
+
+  const lastCheckIn = checkIns[0];
 
   const handleSignOut = async () => {
     try {
@@ -25,6 +59,11 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error signing out:", error);
     }
+  };
+
+  const handleCheckInSubmit = async (data: any) => {
+    await submitCheckIn(data);
+    setShowCheckInForm(false);
   };
 
   if (loading) {
@@ -37,52 +76,133 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
-      <div className="max-w-4xl mx-auto space-y-6 py-8">
+      <div className="max-w-7xl mx-auto space-y-6 py-8">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Welcome back, {user.name}!</h1>
+            <p className="text-muted-foreground mt-1">
+              {format(new Date(), "EEEE, MMMM d, yyyy")}
+            </p>
+          </div>
           <Button onClick={handleSignOut} variant="outline">
             Sign Out
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome, {user.name}!</CardTitle>
-            <CardDescription>
-              You&apos;re successfully logged in to Octo-Calm
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              <span className="font-medium">Email:</span> {user.email}
-            </p>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              <span className="font-medium">User ID:</span> {user.$id}
-            </p>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              <span className="font-medium">Account created:</span>{" "}
-              {new Date(user.$createdAt).toLocaleDateString()}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Today&apos;s Check-In
+              </CardTitle>
+              <Heart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {hasCheckedInToday ? "✓ Completed" : "Not yet"}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {hasCheckedInToday
+                  ? "Great job tracking your mood!"
+                  : "Take a moment to check in"}
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Next Steps</CardTitle>
-            <CardDescription>
-              Continue building the Octo-Calm application
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc list-inside space-y-2 text-sm text-slate-600 dark:text-slate-400">
-              <li>Set up Appwrite database and collections</li>
-              <li>Create core types and interfaces</li>
-              <li>Build mood tracking feature</li>
-              <li>Implement AI chat interface</li>
-              <li>Add intervention system</li>
-            </ul>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total Check-Ins
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{checkIns.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Last 30 days</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Last Check-In
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {lastCheckIn ? (
+                <>
+                  <div className="text-2xl font-bold">
+                    {["😢", "😔", "😐", "🙂", "😊"][lastCheckIn.mood - 1]}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {format(
+                      new Date(lastCheckIn.timestamp),
+                      "MMM d 'at' h:mm a"
+                    )}
+                  </p>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No check-ins yet
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Mood Check-In Section */}
+        {!hasCheckedInToday && !showCheckInForm && (
+          <Card className="border-2 border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle>Daily Check-In</CardTitle>
+              <CardDescription>
+                You haven&apos;t checked in today. How are you feeling?
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => setShowCheckInForm(true)} size="lg">
+                Start Check-In
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {showCheckInForm && (
+          <div className="flex justify-center">
+            <MoodCheckInForm
+              onSubmit={handleCheckInSubmit}
+              className="max-w-2xl w-full"
+            />
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Mood Chart */}
+          <div className="lg:col-span-2">
+            <MoodChart checkIns={checkIns} />
+          </div>
+
+          {/* Recent Check-Ins */}
+          <div className="lg:col-span-2">
+            <MoodHistory
+              checkIns={checkIns}
+              onLoadMore={loadMore}
+              hasMore={hasMore}
+              isLoading={checkInsLoading}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <Card className="border-red-300 bg-red-50 dark:bg-red-950 dark:border-red-800">
+            <CardContent className="pt-6">
+              <p className="text-red-600 dark:text-red-400">{error}</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

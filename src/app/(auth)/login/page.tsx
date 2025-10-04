@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { signIn } from "@/lib/appwrite/auth";
+import { signIn } from "@/lib/appwrite/auth-new";
 import { useAuth } from "@/lib/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +29,20 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { refreshUser } = useAuth();
+  const searchParams = useSearchParams();
+  const { refreshUser, user } = useAuth();
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Get redirect URL from query params
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push(redirectTo);
+    }
+  }, [user, router, redirectTo]);
 
   const {
     register,
@@ -49,7 +60,8 @@ export default function LoginPage() {
       const session = await signIn(data);
       if (session) {
         await refreshUser();
-        router.push("/dashboard");
+        // Use replace instead of push to prevent back button issues
+        router.replace(redirectTo);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sign in");
@@ -106,7 +118,7 @@ export default function LoginPage() {
               )}
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+          <CardFooter className="flex flex-col space-y-4 mt-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>

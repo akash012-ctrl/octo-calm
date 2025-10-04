@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { signUp } from "@/lib/appwrite/auth";
+import { signUp } from "@/lib/appwrite/auth-new";
 import { useAuth } from "@/lib/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,9 +36,16 @@ type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
   const {
     register,
@@ -142,7 +149,7 @@ export default function SignupPage() {
               )}
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
+          <CardFooter className="flex flex-col space-y-4 mt-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Creating account..." : "Sign Up"}
             </Button>

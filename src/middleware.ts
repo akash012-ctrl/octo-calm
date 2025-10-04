@@ -14,9 +14,11 @@ export function middleware(request: NextRequest) {
     const session = request.cookies.get('a_session_' + process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID);
     const hasSession = !!session;
 
-    // If user is authenticated and tries to access auth pages, redirect to dashboard
+    // If user is authenticated and tries to access auth pages, redirect to dashboard or specified redirect
     if (hasSession && authRoutes.some(route => pathname.startsWith(route))) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        const redirectParam = request.nextUrl.searchParams.get('redirect');
+        const redirectUrl = redirectParam || '/dashboard';
+        return NextResponse.redirect(new URL(redirectUrl, request.url));
     }
 
     // If user is not authenticated and tries to access protected routes, redirect to login
@@ -24,6 +26,14 @@ export function middleware(request: NextRequest) {
         const loginUrl = new URL('/login', request.url);
         loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
+    }
+
+    // Add user session info to headers for API routes
+    if (hasSession && pathname.startsWith('/api')) {
+        const response = NextResponse.next();
+        // Extract user ID from session cookie if possible
+        // For now, we'll need to verify session in API routes
+        return response;
     }
 
     return NextResponse.next();
