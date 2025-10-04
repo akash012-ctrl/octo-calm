@@ -32,8 +32,6 @@ export default function DashboardPage() {
     error,
     submitCheckIn,
     fetchCheckIns,
-    loadMore,
-    hasMore,
   } = useMoodCheckIns();
 
   const [showCheckInForm, setShowCheckInForm] = useState(false);
@@ -198,12 +196,7 @@ export default function DashboardPage() {
 
           {/* Recent Check-Ins */}
           <div className="lg:col-span-2">
-            <MoodHistory
-              checkIns={checkIns}
-              onLoadMore={loadMore}
-              hasMore={hasMore}
-              isLoading={checkInsLoading}
-            />
+            <MoodHistory checkIns={checkIns} isLoading={checkInsLoading} />
           </div>
         </div>
 

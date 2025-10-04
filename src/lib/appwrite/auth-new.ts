@@ -6,6 +6,43 @@
 import { ID, type Models } from 'appwrite';
 import { account } from './client';
 
+const SESSION_ENDPOINT = '/api/auth/session';
+
+async function syncServerAuthSession(jwt?: string | null): Promise<void> {
+    try {
+        // If explicitly null, clear the cookie
+        if (jwt === null) {
+            await fetch(SESSION_ENDPOINT, {
+                method: 'DELETE',
+                credentials: 'include',
+            });
+            return;
+        }
+
+        let token = jwt ?? null;
+
+        if (!token) {
+            const jwtResponse = await account.createJWT();
+            token = jwtResponse.jwt;
+        }
+
+        if (!token) {
+            return;
+        }
+
+        await fetch(SESSION_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ jwt: token }),
+        });
+    } catch (error) {
+        console.warn('Failed to sync server auth session:', error);
+    }
+}
+
 export interface SignUpData {
     email: string;
     password: string;
@@ -32,10 +69,14 @@ export async function signUp({ email, password, name }: SignUpData): Promise<Mod
         );
 
         // Automatically sign in after creating account
-        await account.createEmailPasswordSession({
+        const session = await account.createEmailPasswordSession({
             email,
             password
         });
+
+        if (session) {
+            await syncServerAuthSession();
+        }
 
         return user;
     } catch (error) {
@@ -54,6 +95,9 @@ export async function signIn({ email, password }: SignInData): Promise<Models.Se
             email,
             password
         });
+        if (session) {
+            await syncServerAuthSession();
+        }
         return session;
     } catch (error) {
         console.error('Sign in error:', error);
@@ -68,6 +112,7 @@ export async function signIn({ email, password }: SignInData): Promise<Models.Se
 export async function signOut(): Promise<void> {
     try {
         await account.deleteSession('current');
+        await syncServerAuthSession(null);
     } catch (error) {
         console.error('Sign out error:', error);
         throw error;
@@ -81,9 +126,13 @@ export async function signOut(): Promise<void> {
 export async function getCurrentUser(): Promise<Models.User<Models.Preferences> | null> {
     try {
         const user = await account.get();
+        if (user) {
+            await syncServerAuthSession();
+        }
         return user;
     } catch {
         // User not authenticated
+        await syncServerAuthSession(null);
         return null;
     }
 }

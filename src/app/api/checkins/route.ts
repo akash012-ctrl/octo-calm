@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { databases } from "@/lib/appwrite/server";
-import { Query, ID } from "node-appwrite";
+import { Query, ID, type Models } from "node-appwrite";
 import { moodCheckInSchema, moodCheckInQuerySchema } from "@/lib/validation/mood-schemas";
 import { requireAuth } from "@/lib/appwrite/api-auth";
 
@@ -86,15 +86,11 @@ export async function GET(request: NextRequest) {
 
         // Parse query parameters
         const { searchParams } = new URL(request.url);
-        const range = searchParams.get("range") || "7days";
-        const limit = parseInt(searchParams.get("limit") || "50");
-        const offset = parseInt(searchParams.get("offset") || "0");
+        const range = searchParams.get("range") || undefined;
 
         // Validate query parameters
         const queryValidation = moodCheckInQuerySchema.safeParse({
             range,
-            limit,
-            offset,
         });
 
         if (!queryValidation.success) {
@@ -104,11 +100,13 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        const { range: validatedRange } = queryValidation.data;
+
         // Calculate date range
         const now = new Date();
         let startDate: Date;
 
-        switch (range) {
+        switch (validatedRange) {
             case "7days":
                 startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
                 break;
@@ -124,25 +122,36 @@ export async function GET(request: NextRequest) {
                 break;
         }
 
-        // Query check-ins
-        const queries = [
-            Query.equal("userId", userId),
-            Query.greaterThanEqual("timestamp", startDate.toISOString()),
-            Query.orderDesc("timestamp"),
-            Query.limit(limit),
-            Query.offset(offset),
-        ];
+        // Query all check-ins without exposing pagination to the client
+        const allCheckIns: Models.Document[] = [];
+        const limit = 100;
+        let offset = 0;
 
-        const response = await databases.listDocuments(
-            DATABASE_ID,
-            COLLECTION_ID,
-            queries
-        );
+        while (true) {
+            const response = await databases.listDocuments(
+                DATABASE_ID,
+                COLLECTION_ID,
+                [
+                    Query.equal("userId", userId),
+                    Query.greaterThanEqual("timestamp", startDate.toISOString()),
+                    Query.orderDesc("timestamp"),
+                    Query.limit(limit),
+                    Query.offset(offset),
+                ]
+            );
+
+            allCheckIns.push(...response.documents);
+
+            if (response.documents.length < limit) {
+                break;
+            }
+
+            offset += limit;
+        }
 
         return NextResponse.json({
-            checkIns: response.documents,
-            total: response.total,
-            hasMore: response.total > offset + limit,
+            checkIns: allCheckIns,
+            total: allCheckIns.length,
         });
     } catch (error) {
         console.error("Error fetching check-ins:", error);

@@ -22,8 +22,6 @@ import { cn } from "@/lib/utils";
 
 interface MoodHistoryProps {
   checkIns: MoodCheckIn[];
-  onLoadMore?: () => void;
-  hasMore?: boolean;
   isLoading?: boolean;
   className?: string;
 }
@@ -46,8 +44,6 @@ const MOOD_LABELS = {
 
 export function MoodHistory({
   checkIns,
-  onLoadMore,
-  hasMore = false,
   isLoading = false,
   className,
 }: MoodHistoryProps) {
@@ -67,6 +63,20 @@ export function MoodHistory({
       return <TrendingDown className="h-4 w-4 text-red-500" />;
     return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
+
+  if (isLoading && checkIns.length === 0) {
+    return (
+      <Card className={cn("w-full", className)}>
+        <CardHeader>
+          <CardTitle>Check-In History</CardTitle>
+          <CardDescription>Loading your recent check-ins...</CardDescription>
+        </CardHeader>
+        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+          Please hold on a moment while we gather your data.
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (checkIns.length === 0) {
     return (
@@ -100,6 +110,11 @@ export function MoodHistory({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {isLoading && (
+          <div className="text-sm text-muted-foreground">
+            Loading check-ins...
+          </div>
+        )}
         {checkIns.map((checkIn, index) => {
           const previousCheckIn = checkIns[index + 1];
           const hasAudio =
@@ -187,18 +202,6 @@ export function MoodHistory({
             </div>
           );
         })}
-
-        {/* Load More Button */}
-        {hasMore && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={onLoadMore}
-            disabled={isLoading}
-          >
-            {isLoading ? "Loading..." : "Load More"}
-          </Button>
-        )}
       </CardContent>
     </Card>
   );

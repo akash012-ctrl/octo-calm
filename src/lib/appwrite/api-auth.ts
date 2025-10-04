@@ -14,13 +14,23 @@ function getClientFromRequest(request: NextRequest): Client {
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
 
-    // Get session cookie
-    const sessionCookieName = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
+    const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
+    const sessionCookieName = `a_session_${projectId}`;
+    const jwtCookieName = `appwrite_jwt_${projectId}`;
+
     const sessionCookie = request.cookies.get(sessionCookieName);
+    const authHeader = request.headers.get("authorization");
+    const bearerToken = authHeader?.toLowerCase().startsWith("bearer ")
+        ? authHeader.slice(7).trim()
+        : null;
+    const jwtCookie = request.cookies.get(jwtCookieName);
 
     if (sessionCookie?.value) {
-        // Set the session on the client
         client.setSession(sessionCookie.value);
+    } else if (bearerToken) {
+        client.setJWT(bearerToken);
+    } else if (jwtCookie?.value) {
+        client.setJWT(jwtCookie.value);
     }
 
     return client;

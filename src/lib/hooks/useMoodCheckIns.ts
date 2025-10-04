@@ -10,17 +10,12 @@ interface UseMoodCheckInsReturn {
     error: string | null;
     submitCheckIn: (data: MoodCheckInFormData) => Promise<void>;
     fetchCheckIns: (range?: string) => Promise<void>;
-    loadMore: () => Promise<void>;
-    hasMore: boolean;
 }
 
 export function useMoodCheckIns(): UseMoodCheckInsReturn {
     const [checkIns, setCheckIns] = useState<MoodCheckIn[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [hasMore, setHasMore] = useState(false);
-    const [offset, setOffset] = useState(0);
-
     const submitCheckIn = useCallback(async (data: MoodCheckInFormData) => {
         try {
             setError(null);
@@ -29,6 +24,7 @@ export function useMoodCheckIns(): UseMoodCheckInsReturn {
                 headers: {
                     "Content-Type": "application/json",
                 },
+                credentials: "include",
                 body: JSON.stringify(data),
             });
 
@@ -56,7 +52,10 @@ export function useMoodCheckIns(): UseMoodCheckInsReturn {
             setError(null);
 
             const response = await fetch(
-                `/api/checkins?range=${range}&limit=50&offset=0`
+                `/api/checkins?range=${range}`,
+                {
+                    credentials: "include",
+                }
             );
 
             if (!response.ok) {
@@ -65,8 +64,6 @@ export function useMoodCheckIns(): UseMoodCheckInsReturn {
 
             const data = await response.json();
             setCheckIns(data.checkIns);
-            setHasMore(data.hasMore);
-            setOffset(data.checkIns.length);
         } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to fetch check-ins";
             setError(message);
@@ -75,40 +72,11 @@ export function useMoodCheckIns(): UseMoodCheckInsReturn {
         }
     }, []);
 
-    const loadMore = useCallback(async () => {
-        if (isLoading || !hasMore) return;
-
-        try {
-            setIsLoading(true);
-            setError(null);
-
-            const response = await fetch(
-                `/api/checkins?limit=50&offset=${offset}`
-            );
-
-            if (!response.ok) {
-                throw new Error("Failed to load more check-ins");
-            }
-
-            const data = await response.json();
-            setCheckIns((prev) => [...prev, ...data.checkIns]);
-            setHasMore(data.hasMore);
-            setOffset((prev) => prev + data.checkIns.length);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to load more check-ins";
-            setError(message);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [isLoading, hasMore, offset]);
-
     return {
         checkIns,
         isLoading,
         error,
         submitCheckIn,
         fetchCheckIns,
-        loadMore,
-        hasMore,
     };
 }

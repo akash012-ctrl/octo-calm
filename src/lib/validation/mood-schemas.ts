@@ -18,8 +18,6 @@ export type MoodCheckInFormData = z.infer<typeof moodCheckInSchema>;
 
 export const moodCheckInQuerySchema = z.object({
     range: z.enum(["7days", "30days", "90days", "all"]).optional().default("7days"),
-    limit: z.number().min(1).max(100).optional().default(50),
-    offset: z.number().min(0).optional().default(0),
 });
 
 export type MoodCheckInQuery = z.infer<typeof moodCheckInQuerySchema>;
