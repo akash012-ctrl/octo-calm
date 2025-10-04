@@ -36,16 +36,19 @@ type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
   const router = useRouter();
-  const { refreshUser, user } = useAuth();
+  const { refreshUser, user, loading } = useAuth();
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if already logged in
+  // 🔒 AUTH PROTECTION: Redirect if already logged in
   useEffect(() => {
-    if (user) {
-      router.push("/dashboard");
+    if (!loading && user) {
+      console.log(
+        "[Signup] User already authenticated, redirecting to /dashboard"
+      );
+      router.replace("/dashboard");
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
   const {
     register,
@@ -60,16 +63,39 @@ export default function SignupPage() {
     setError("");
 
     try {
+      console.log("[Signup] Creating new account...");
       const { name, email, password } = data;
       await signUp({ name, email, password });
+
+      console.log("[Signup] Account created, refreshing user...");
       await refreshUser();
-      router.push("/dashboard");
+
+      console.log("[Signup] Redirecting to /dashboard");
+      router.replace("/dashboard");
     } catch (err) {
+      console.error("[Signup] Sign up failed:", err);
       setError(err instanceof Error ? err.message : "Failed to create account");
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render form if already authenticated (will redirect)
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">

@@ -9,6 +9,7 @@ interface AuthContextType {
   loading: boolean;
   setUser: (user: Models.User<Models.Preferences> | null) => void;
   refreshUser: () => Promise<void>;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,7 +25,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-    } catch {
+      console.log(
+        "[AuthContext] User refreshed:",
+        currentUser ? "Authenticated" : "Not authenticated"
+      );
+    } catch (error) {
+      console.error("[AuthContext] Failed to refresh user:", error);
       setUser(null);
     } finally {
       setLoading(false);
@@ -32,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Initial user check on mount
     refreshUser();
   }, []);
 
@@ -40,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     setUser,
     refreshUser,
+    isAuthenticated: !!user,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,20 +29,19 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { refreshUser, user } = useAuth();
+  const { refreshUser, user, loading } = useAuth();
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get redirect URL from query params
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
-
-  // Redirect if already logged in
+  // 🔒 AUTH PROTECTION: Redirect if already logged in
   useEffect(() => {
-    if (user) {
-      router.push(redirectTo);
+    if (!loading && user) {
+      console.log(
+        "[Login] User already authenticated, redirecting to /dashboard"
+      );
+      router.replace("/dashboard");
     }
-  }, [user, router, redirectTo]);
+  }, [user, loading, router]);
 
   const {
     register,
@@ -57,18 +56,39 @@ export default function LoginPage() {
     setError("");
 
     try {
+      console.log("[Login] Attempting to sign in...");
       const session = await signIn(data);
+
       if (session) {
+        console.log("[Login] Session created, refreshing user...");
         await refreshUser();
-        // Use replace instead of push to prevent back button issues
-        router.replace(redirectTo);
+        console.log("[Login] Redirecting to /dashboard");
+        router.replace("/dashboard");
       }
     } catch (err) {
+      console.error("[Login] Sign in failed:", err);
       setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render form if already authenticated (will redirect)
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">

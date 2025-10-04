@@ -26,10 +26,7 @@ function getClientFromRequest(request: NextRequest): Client {
     return client;
 }
 
-/**
- * Get the current authenticated user from the API route
- * Uses session from cookies to verify user
- */
+
 export async function getCurrentUserFromRequest(
     request: NextRequest
 ): Promise<Models.User<Models.Preferences> | null> {
@@ -44,18 +41,7 @@ export async function getCurrentUserFromRequest(
     }
 }
 
-/**
- * Require authentication in API route
- * Throws error if user is not authenticated
- * 
- * Usage:
- * ```typescript
- * export async function POST(request: NextRequest) {
- *   const userId = await requireAuth(request);
- *   // Your logic here...
- * }
- * ```
- */
+
 export async function requireAuth(request: NextRequest): Promise<string> {
     const user = await getCurrentUserFromRequest(request);
 

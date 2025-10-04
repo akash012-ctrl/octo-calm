@@ -21,9 +21,10 @@ import {
 import { useMoodCheckIns } from "@/lib/hooks/useMoodCheckIns";
 import { format, isToday } from "date-fns";
 import { Heart, TrendingUp } from "lucide-react";
+import { MoodCheckInFormData } from "@/lib/validation/mood-schemas";
 
 export default function DashboardPage() {
-  const { user, loading, setUser } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
   const {
     checkIns,
@@ -44,6 +45,14 @@ export default function DashboardPage() {
     }
   }, [user, fetchCheckIns]);
 
+  // Redirect to login when not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      console.log("[Dashboard] No authenticated user, redirecting to /login");
+      router.replace("/login");
+    }
+  }, [loading, user, router]);
+
   // Check if user has completed check-in today
   const hasCheckedInToday = checkIns.some((checkIn) =>
     isToday(new Date(checkIn.timestamp))
@@ -53,26 +62,26 @@ export default function DashboardPage() {
 
   const handleSignOut = async () => {
     try {
+      console.log("[Dashboard] Signing out...");
       await signOut();
-      setUser(null);
-      router.push("/login");
+      await refreshUser();
+      console.log("[Dashboard] Redirecting to /login");
+      router.replace("/login");
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("[Dashboard] Error signing out:", error);
     }
   };
 
-  const handleCheckInSubmit = async (data: any) => {
+  const handleCheckInSubmit = async (data: MoodCheckInFormData) => {
     await submitCheckIn(data);
     setShowCheckInForm(false);
   };
 
-  if (loading) {
+  if (loading || (!loading && !user)) {
     return <AuthLoading />;
   }
 
-  if (!user) {
-    return null; // Middleware will redirect
-  }
+  const currentUser = user as NonNullable<typeof user>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
@@ -80,7 +89,9 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Welcome back, {user.name}!</h1>
+            <h1 className="text-3xl font-bold">
+              Welcome back, {currentUser.name}!
+            </h1>
             <p className="text-muted-foreground mt-1">
               {format(new Date(), "EEEE, MMMM d, yyyy")}
             </p>
