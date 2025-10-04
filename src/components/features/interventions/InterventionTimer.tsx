@@ -16,10 +16,11 @@ interface InterventionTimerProps {
   autoStart?: boolean;
   onPhaseChange?: (phaseIndex: number, cycle: number) => void;
   onComplete?: () => void;
+  onSnapshotChange?: (snapshot: TimerSnapshot) => void;
   className?: string;
 }
 
-interface TimerSnapshot {
+export interface TimerSnapshot {
   normalizedPhases: InterventionTimerPhase[];
   totalDuration: number;
   elapsed: number;
@@ -37,12 +38,14 @@ function useTimerSnapshot({
   autoStart,
   onPhaseChange,
   onComplete,
+  onSnapshotChange,
 }: {
   phases: InterventionTimerPhase[];
   cycles: number;
   autoStart: boolean;
   onPhaseChange?: (phaseIndex: number, cycle: number) => void;
   onComplete?: () => void;
+  onSnapshotChange?: (snapshot: TimerSnapshot) => void;
 }): TimerSnapshot {
   const normalizedPhases = useMemo(
     () => phases.filter((phase) => phase.duration > 0),
@@ -139,20 +142,39 @@ function useTimerSnapshot({
     .slice(0, phaseIndex)
     .reduce((sum, phase) => sum + phase.duration, 0);
   const phaseElapsed = Math.max(0, elapsedInCycle - priorDuration);
+  const phaseRemaining = currentPhase
+    ? Math.max(0, currentPhase.duration - phaseElapsed)
+    : 0;
 
-  return {
-    normalizedPhases,
-    totalDuration,
-    elapsed,
-    cycleIndex,
-    phaseIndex,
-    isRunning,
-    toggleRunning: () => setIsRunning((prev) => !prev),
-    currentPhase,
-    phaseRemaining: currentPhase
-      ? Math.max(0, currentPhase.duration - phaseElapsed)
-      : 0,
-  };
+  const snapshot = useMemo<TimerSnapshot>(
+    () => ({
+      normalizedPhases,
+      totalDuration,
+      elapsed,
+      cycleIndex,
+      phaseIndex,
+      isRunning,
+      toggleRunning: () => setIsRunning((prev) => !prev),
+      currentPhase,
+      phaseRemaining,
+    }),
+    [
+      normalizedPhases,
+      totalDuration,
+      elapsed,
+      cycleIndex,
+      phaseIndex,
+      isRunning,
+      currentPhase,
+      phaseRemaining,
+    ]
+  );
+
+  useEffect(() => {
+    onSnapshotChange?.(snapshot);
+  }, [onSnapshotChange, snapshot]);
+
+  return snapshot;
 }
 
 export function InterventionTimer({
@@ -161,6 +183,7 @@ export function InterventionTimer({
   autoStart = true,
   onPhaseChange,
   onComplete,
+  onSnapshotChange,
   className,
 }: InterventionTimerProps) {
   const snapshot = useTimerSnapshot({
@@ -169,6 +192,7 @@ export function InterventionTimer({
     autoStart,
     onPhaseChange,
     onComplete,
+    onSnapshotChange,
   });
 
   const {

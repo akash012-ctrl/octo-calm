@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ID } from "node-appwrite";
+import { ID, Permission, Role } from "node-appwrite";
 import { requireAuth } from "@/lib/appwrite/api-auth";
 import { databases, DATABASE_ID, COLLECTION_IDS } from "@/lib/appwrite/server";
 
@@ -18,6 +18,20 @@ function validateBody(body: StartInterventionBody) {
     }
 }
 
+const AGENT_INSTRUCTIONS: Record<string, string> = {
+    grounding_60s:
+        "Guide the user through the 5-4-3-2-1 grounding exercise. Mirror their observations, keep pace with their selections, and celebrate completion with a calm tone.",
+    box_breathing_90s:
+        "Lead a 4-4-4-4 box breathing sequence for approximately 90 seconds. Count each segment with the user, invite gentle posture adjustments, and close with a body check-in.",
+};
+
+function buildAgentInstructions(interventionType: string) {
+    return (
+        AGENT_INSTRUCTIONS[interventionType] ??
+        `Guide the user through the ${interventionType.replace(/_/g, " ")} intervention with compassionate pacing and realtime check-ins.`
+    );
+}
+
 export async function POST(request: NextRequest) {
     try {
         const userId = await requireAuth(request);
@@ -25,6 +39,7 @@ export async function POST(request: NextRequest) {
         validateBody(body);
 
         const startedAt = new Date().toISOString();
+        const agentInstructions = buildAgentInstructions(body.interventionType!);
         const document = await databases.createDocument(
             DATABASE_ID,
             COLLECTION_IDS.INTERVENTION_SESSIONS,
@@ -43,7 +58,15 @@ export async function POST(request: NextRequest) {
                 completedAt: null,
                 helpfulnessRating: null,
                 calmnessDelta: null,
+                agentInstructions,
             }
+            ,
+            [
+                Permission.read(Role.user(userId)),
+                Permission.update(Role.user(userId)),
+                Permission.delete(Role.user(userId)),
+                Permission.write(Role.user(userId)),
+            ]
         );
 
         return NextResponse.json({
@@ -51,6 +74,7 @@ export async function POST(request: NextRequest) {
             startedAt,
             interventionType: body.interventionType,
             realtimeSessionId: body.realtimeSessionId ?? null,
+            agentInstructions,
         });
     } catch (error) {
         if (error instanceof Error) {

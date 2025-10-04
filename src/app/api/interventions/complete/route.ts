@@ -10,6 +10,7 @@ interface CompleteInterventionBody {
     feedback?: string;
     sessionItemId?: string;
     transcriptSnapshot?: unknown;
+    realtimeSessionId?: string;
 }
 
 function ensureValid(body: CompleteInterventionBody) {
@@ -51,6 +52,37 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        if (body.realtimeSessionId) {
+            const origin = request.nextUrl?.origin ?? process.env.NEXT_PUBLIC_APP_URL;
+            if (origin) {
+                const followUp = {
+                    type: "response.create",
+                    response: {
+                        modalities: ["text"],
+                        instructions: buildFollowUpCopy({
+                            rating: body.helpfulnessRating,
+                            calmnessDelta: body.calmnessDelta,
+                            interventionType: document.interventionType ?? "intervention",
+                        }),
+                    },
+                };
+
+                fetch(new URL("/api/realtime/events", origin).toString(), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        sessionId: body.realtimeSessionId,
+                        event: followUp,
+                    }),
+                    credentials: "include",
+                }).catch((error) => {
+                    console.warn("Failed to relay intervention follow-up", error);
+                });
+            }
+        }
+
         return NextResponse.json({
             interventionSessionId: sessionId,
             completedAt,
@@ -71,4 +103,34 @@ export async function POST(request: NextRequest) {
         console.error("Failed to complete intervention session", error);
         return NextResponse.json({ error: "Failed to complete intervention" }, { status: 500 });
     }
+}
+
+function buildFollowUpCopy({
+    rating,
+    calmnessDelta,
+    interventionType,
+}: {
+    rating?: number;
+    calmnessDelta?: number;
+    interventionType: string;
+}) {
+    const score = typeof rating === "number" ? rating : null;
+    const delta = typeof calmnessDelta === "number" ? calmnessDelta : null;
+    const normalizedName = interventionType.replace(/_/g, " ");
+
+    const ratingLine =
+        score !== null
+            ? score >= 4
+                ? `They rated the ${normalizedName} ${score}/5. Celebrate their progress.`
+                : `They rated the ${normalizedName} ${score}/5. Acknowledge the effort and ask what could help next time.`
+            : `Ask the user how helpful the ${normalizedName} felt for them.`;
+
+    const calmnessLine =
+        delta !== null
+            ? delta >= 0
+                ? `They reported feeling ${delta} points calmer. Encourage them to notice the shift and suggest a gentle check-in later.`
+                : `Calmness dropped by ${Math.abs(delta)} points. Offer empathy, explore what's still present, and invite another grounding option.`
+            : "Invite them to share any shifts in their body or breath.";
+
+    return [ratingLine, calmnessLine, "Offer to bookmark this intervention for future use and thank them for practicing together."].join(" ");
 }

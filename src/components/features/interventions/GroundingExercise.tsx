@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Mic, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +65,39 @@ const STEPS = [
     count: 1,
   },
 ] as const;
+
+const THEMES = {
+  dawn: {
+    label: "Dawn glow",
+    header:
+      "bg-gradient-to-r from-amber-200/60 via-orange-100/60 to-transparent text-amber-900",
+    container: "bg-amber-50",
+  },
+  tide: {
+    label: "Tidal breezes",
+    header:
+      "bg-gradient-to-r from-sky-200/60 via-cyan-100/60 to-transparent text-sky-900",
+    container: "bg-sky-50",
+  },
+  dusk: {
+    label: "Twilight calm",
+    header:
+      "bg-gradient-to-r from-indigo-200/60 via-purple-100/60 to-transparent text-indigo-900",
+    container: "bg-indigo-50",
+  },
+} satisfies Record<
+  string,
+  { label: string; header: string; container: string }
+>;
+
+const PACE_INTERVALS: Record<"slow" | "steady" | "brisk", number> = {
+  slow: 55000,
+  steady: 35000,
+  brisk: 20000,
+};
+
+type ThemeKey = keyof typeof THEMES;
+type GroundingPace = "manual" | "slow" | "steady" | "brisk";
 
 function useGroundingSession(
   onStepChange?: GroundingExerciseProps["onStepChange"],
@@ -136,10 +169,27 @@ export function GroundingExercise({
     restart,
   } = useGroundingSession(onStepChange, onCaptureReflection);
 
+  const [themeKey, setThemeKey] = useState<ThemeKey>("dawn");
+  const [pace, setPace] = useState<GroundingPace>("steady");
   const [collectFeedback, setCollectFeedback] = useState(false);
   const startTimeRef = useRef<number>(
     typeof performance !== "undefined" ? performance.now() : Date.now()
   );
+  const theme = THEMES[themeKey];
+
+  useEffect(() => {
+    if (isFinished || pace === "manual") {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      if (advance()) {
+        setCollectFeedback(true);
+      }
+    }, PACE_INTERVALS[pace]);
+
+    return () => window.clearTimeout(timeout);
+  }, [advance, isFinished, pace, currentIndex]);
 
   const handleAdvance = () => {
     if (advance()) {
@@ -191,8 +241,14 @@ export function GroundingExercise({
   };
 
   return (
-    <Card className={cn("h-full border-primary/20", className)}>
-      <CardHeader className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
+    <Card
+      className={cn(
+        "h-full border-primary/20 transition-colors",
+        theme?.container,
+        className
+      )}
+    >
+      <CardHeader className={cn("border-b", theme?.header)}>
         <CardTitle className="text-xl font-semibold">Grounding 60s</CardTitle>
         <p className="text-sm text-muted-foreground">
           Gently reconnect with the present moment using the 5-4-3-2-1 technique
@@ -200,6 +256,69 @@ export function GroundingExercise({
         </p>
       </CardHeader>
       <CardContent className="space-y-6 p-6">
+        <div className="grid gap-4 text-xs sm:grid-cols-2">
+          <div className="space-y-2">
+            <p className="font-semibold uppercase tracking-wide text-muted-foreground">
+              Backdrop tone
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                Object.entries(THEMES) as [
+                  ThemeKey,
+                  (typeof THEMES)[ThemeKey]
+                ][]
+              ).map(([key, value]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setThemeKey(key)}
+                  className={cn(
+                    "rounded-md border px-3 py-2 text-xs font-medium shadow-sm transition",
+                    themeKey === key
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-transparent bg-background/60 text-muted-foreground hover:border-muted"
+                  )}
+                  aria-pressed={themeKey === key}
+                >
+                  {value.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="font-semibold uppercase tracking-wide text-muted-foreground">
+              Pace guidance
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["manual", "Manual"],
+                  ["slow", "Slow"],
+                  ["steady", "Steady"],
+                  ["brisk", "Brisk"],
+                ] as [GroundingPace, string][]
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={pace === value ? "default" : "outline"}
+                  onClick={() => setPace(value)}
+                  className="uppercase tracking-wide"
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {pace !== "manual" && (
+              <p className="text-xs text-muted-foreground">
+                Auto-advances every {Math.round(PACE_INTERVALS[pace] / 1000)}{" "}
+                seconds if you pause.
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
           <span>
             Step {Math.min(currentIndex + 1, STEPS.length)} of {STEPS.length}

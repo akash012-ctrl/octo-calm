@@ -125,6 +125,18 @@ export function VoiceCompanion({
     [moodInference]
   );
 
+  const sortedRecommendations = useMemo(() => {
+    const priorityValue: Record<"high" | "medium" | "low", number> = {
+      high: 0,
+      medium: 1,
+      low: 2,
+    };
+
+    return recommendedInterventions
+      .slice()
+      .sort((a, b) => priorityValue[a.priority] - priorityValue[b.priority]);
+  }, [recommendedInterventions]);
+
   const handleInterruptionToggle = () => {
     if (interruptionRequested) {
       resolveInterruption();
@@ -204,23 +216,25 @@ export function VoiceCompanion({
           </div>
         )}
 
-        {recommendedInterventions.length > 0 && (
+        {sortedRecommendations.length > 0 && (
           <div className="rounded-lg border bg-background/60 p-3 text-sm">
             <p className="mb-2 font-semibold text-foreground">
               Suggested next steps
             </p>
             <ol className="space-y-2">
-              {recommendedInterventions
-                .slice()
-                .sort((a, b) => a.priority - b.priority)
-                .map((item) => (
-                  <li key={item.id} className="rounded-md bg-muted/60 p-2">
+              {sortedRecommendations.map((item) => (
+                <li key={item.type} className="rounded-md bg-muted/60 p-2">
+                  <div className="flex items-center justify-between">
                     <p className="font-medium">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.reason}
-                    </p>
-                  </li>
-                ))}
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {item.priority}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {item.reasoning}
+                  </p>
+                </li>
+              ))}
             </ol>
           </div>
         )}
@@ -250,7 +264,19 @@ export function VoiceCompanion({
                 {moodInference.cues.length > 0 && (
                   <div className="text-xs text-muted-foreground">
                     <p className="font-medium text-foreground">Detected cues</p>
-                    <p>{moodInference.cues.join(", ")}</p>
+                    <p>
+                      {moodInference.cues.map((cue) => cue.term).join(", ")}
+                    </p>
+                  </div>
+                )}
+                {moodInference.patterns.length > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">Patterns</p>
+                    <ul className="list-disc pl-4">
+                      {moodInference.patterns.map((pattern) => (
+                        <li key={pattern.name}>{pattern.name}</li>
+                      ))}
+                    </ul>
                   </div>
                 )}
                 {supportingTranscript && (
@@ -275,7 +301,7 @@ export function VoiceCompanion({
                   {prioritizedIntervention.title}
                 </p>
                 <p className="text-muted-foreground">
-                  {prioritizedIntervention.reason}
+                  {prioritizedIntervention.reasoning}
                 </p>
               </div>
             )}
