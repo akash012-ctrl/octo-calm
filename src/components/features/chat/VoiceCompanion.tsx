@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, AlertTriangle, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRealtimeSessionStore } from "@/lib/stores/realtimeSessionStore";
@@ -9,6 +9,7 @@ import { TranscriptList } from "./TranscriptList";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { TransportHealthBadge } from "./TransportHealthBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 interface VoiceCompanionProps {
   className?: string;
@@ -73,6 +74,24 @@ export function VoiceCompanion({
   const prioritizedIntervention = useRealtimeSessionStore((state) =>
     state.getTopRecommendedIntervention()
   );
+  const persistingHistory = useRealtimeSessionStore(
+    (state) => state.persistingHistory
+  );
+  const historyError = useRealtimeSessionStore((state) => state.historyError);
+  const historyId = useRealtimeSessionStore((state) => state.historyId);
+  const historyTotalCount = useRealtimeSessionStore(
+    (state) => state.historyTotalCount
+  );
+  const persistSessionHistory = useRealtimeSessionStore(
+    (state) => state.persistSessionHistory
+  );
+  const exportPersistedHistory = useRealtimeSessionStore(
+    (state) => state.exportPersistedHistory
+  );
+  const purgePersistedHistory = useRealtimeSessionStore(
+    (state) => state.purgePersistedHistory
+  );
+  const hasStoredHistory = historyId !== null || historyTotalCount > 0;
 
   const guardrailIndicators = useMemo(() => {
     const indicators: { label: string; tone: "warning" | "destructive" }[] = [];
@@ -144,6 +163,96 @@ export function VoiceCompanion({
       requestInterruption();
     }
   };
+
+  const [historyNotice, setHistoryNotice] = useState<{
+    tone: "info" | "success" | "error";
+    message: string;
+  } | null>(null);
+  const [exportingHistory, setExportingHistory] = useState(false);
+  const [purgingHistory, setPurgingHistory] = useState(false);
+
+  useEffect(() => {
+    if (!historyError) {
+      return;
+    }
+
+    setHistoryNotice({ tone: "error", message: historyError });
+  }, [historyError]);
+
+  const handlePersistHistory = useCallback(async () => {
+    setHistoryNotice(null);
+    try {
+      await persistSessionHistory({ finalize: false });
+      setHistoryNotice({ tone: "success", message: "Snapshot saved." });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to save snapshot";
+      setHistoryNotice({ tone: "error", message });
+    }
+  }, [persistSessionHistory]);
+
+  const handleExportHistory = useCallback(async () => {
+    setExportingHistory(true);
+    setHistoryNotice(null);
+    try {
+      const record = await exportPersistedHistory();
+      if (!record) {
+        setHistoryNotice({
+          tone: "info",
+          message: "No saved history yet—start a session to capture one.",
+        });
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(record, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `realtime-session-${record.historyId}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setHistoryNotice({ tone: "success", message: "History exported." });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to export history";
+      setHistoryNotice({ tone: "error", message });
+    } finally {
+      setExportingHistory(false);
+    }
+  }, [exportPersistedHistory]);
+
+  const handlePurgeHistory = useCallback(async () => {
+    setPurgingHistory(true);
+    setHistoryNotice(null);
+    try {
+      const deleted = await purgePersistedHistory();
+      if (deleted.length === 0) {
+        setHistoryNotice({
+          tone: "info",
+          message: "No stored history to purge.",
+        });
+      } else {
+        setHistoryNotice({
+          tone: "success",
+          message:
+            deleted.length === 1
+              ? "Deleted 1 saved history."
+              : `Deleted ${deleted.length} saved histories.`,
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to purge history";
+      setHistoryNotice({ tone: "error", message });
+    } finally {
+      setPurgingHistory(false);
+    }
+  }, [purgePersistedHistory]);
 
   useEffect(() => {
     if (!autoStart || hasAttemptedStart) {
@@ -383,6 +492,68 @@ export function VoiceCompanion({
               )}
             </div>
           </div>
+        </div>
+
+        <div className="rounded-lg border bg-background/60 p-4 text-xs md:text-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Session history
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {historyId
+                  ? `Last snapshot stored ${historyTotalCount} transcript${
+                      historyTotalCount === 1 ? "" : "s"
+                    }.`
+                  : "Snapshots auto-save when the conversation has activity."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handlePersistHistory}
+                disabled={persistingHistory || !sessionMeta.sessionId}
+              >
+                {persistingHistory ? "Saving…" : "Save snapshot"}
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleExportHistory}
+                disabled={exportingHistory || !hasStoredHistory}
+              >
+                {exportingHistory ? "Exporting…" : "Export JSON"}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handlePurgeHistory}
+                disabled={purgingHistory || !hasStoredHistory}
+              >
+                {purgingHistory ? "Purging…" : "Clear history"}
+              </Button>
+            </div>
+          </div>
+          {historyNotice && (
+            <p
+              className={cn(
+                "mt-2 text-xs",
+                historyNotice.tone === "error"
+                  ? "text-rose-600"
+                  : historyNotice.tone === "success"
+                  ? "text-emerald-600"
+                  : "text-muted-foreground"
+              )}
+            >
+              {historyNotice.message}
+            </p>
+          )}
+          {persistingHistory && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Auto-saving recent turns…
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">

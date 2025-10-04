@@ -38,11 +38,17 @@ export interface MoodEntry extends Models.Document {
 export interface InterventionSession extends Models.Document {
     userId: string;
     interventionType: InterventionType;
-    duration: number; // Duration in seconds
+    durationSeconds: number; // Duration in seconds
     completed: boolean;
     rating?: number; // 1-5 rating of helpfulness
     notes?: string;
     triggerMoodId?: string; // Reference to mood entry that triggered this
+    realtimeSessionId?: string | null;
+    sessionItemId?: string | null;
+    context?: Record<string, unknown> | null;
+    calmnessDelta?: number | null;
+    agentInstructions?: string | null;
+    feedback?: string | null;
     startedAt: string;
     completedAt?: string;
     createdAt: string;
@@ -60,6 +66,21 @@ export type InterventionType =
     | 'cognitive-reframing'
     | 'distraction'
     | 'social-support';
+
+export interface InterventionAnalytics extends Models.Document {
+    userId: string;
+    interventionSessionId: string;
+    interventionType: InterventionType;
+    completedAt: string;
+    moodDelta?: number | null;
+    calmnessDelta?: number | null;
+    helpfulnessRating?: number | null;
+    sentimentScore?: number | null;
+    arousalLevel?: 'low' | 'medium' | 'high' | null;
+    recommendedAction?: string | null;
+    sessionItemId?: string | null;
+    effectivenessScore?: number | null;
+}
 
 /**
  * Breathing exercise configuration

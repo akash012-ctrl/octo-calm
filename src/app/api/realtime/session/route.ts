@@ -8,6 +8,7 @@ import { buildRealtimeSessionConfig, createRealtimeClientSecret, generateServerS
 import { buildRealtimeInstructions } from "@/lib/ai/sessionPrompts";
 import type { MoodCheckIn } from "@/types/mood";
 import type { UserPreferences } from "@/types/user";
+import type { InterventionAnalytics } from "@/types/intervention";
 
 interface SessionRequestBody {
     transport?: "webrtc" | "websocket";
@@ -49,11 +50,36 @@ async function loadUserPreferences(userId: string): Promise<UserPreferences | nu
     return (response.documents[0] as unknown as UserPreferences | undefined) ?? null;
 }
 
+async function loadRecentInterventionAnalytics(userId: string): Promise<InterventionAnalytics[]> {
+    const response = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTION_IDS.INTERVENTION_ANALYTICS,
+        [
+            Query.equal("userId", userId),
+            Query.orderDesc("completedAt"),
+            Query.limit(6),
+        ]
+    );
+
+    return response.documents as unknown as InterventionAnalytics[];
+}
+
 async function assembleSessionBootstrap(context: BootstrapContext) {
     const { userId, transport, locale, voice } = context;
 
     const moodHistory = await loadRecentMoodHistory(userId);
-    const recommendedInterventions = recommendInterventions(null, { checkIns: moodHistory });
+    const analytics = await loadRecentInterventionAnalytics(userId);
+    const recentlyCompleted = analytics.map((item) => ({
+        type: item.interventionType,
+        rating: item.helpfulnessRating ?? undefined,
+        calmnessDelta: item.calmnessDelta ?? null,
+        completedAt: item.completedAt,
+        effectivenessScore: item.effectivenessScore ?? null,
+    }));
+    const recommendedInterventions = recommendInterventions(null, {
+        checkIns: moodHistory,
+        recentlyCompleted,
+    });
     const userPreferences = await loadUserPreferences(userId);
 
     const instructionBundle = await buildRealtimeInstructions({
@@ -109,6 +135,15 @@ async function assembleSessionBootstrap(context: BootstrapContext) {
             annotations: entry.triggers ?? [],
         })),
         checkIns: moodHistory,
+        interventionAnalytics: analytics.map((item) => ({
+            id: item.$id,
+            interventionType: item.interventionType,
+            completedAt: item.completedAt,
+            calmnessDelta: item.calmnessDelta ?? null,
+            helpfulnessRating: item.helpfulnessRating ?? null,
+            moodDelta: item.moodDelta ?? null,
+            effectivenessScore: item.effectivenessScore ?? null,
+        })),
         instructionMeta: {
             personaVersion: instructionBundle.personaVersion,
             sections: instructionBundle.sections,

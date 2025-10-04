@@ -6,19 +6,13 @@ import { evaluateInferenceAgainstHistory, inferMood, type MoodInferenceResult } 
 import { recommendInterventions } from "@/lib/ai/intervention-recommender";
 import type { MoodCheckIn } from "@/types/mood";
 import type { InterventionRecommendation } from "@/types/intervention";
+import type { SessionHistoryRecord, SessionHistoryTranscriptItem } from "@/types/realtime";
 
 export type TransportType = "webrtc" | "websocket";
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "reconnecting";
 export type MicrophoneState = "muted" | "unmuted" | "held";
 
-export interface TranscriptItem {
-    id: string;
-    speaker: "user" | "companion" | "system";
-    content: string;
-    timestamp: string;
-    confidence?: number;
-    annotations?: string[];
-}
+export type TranscriptItem = SessionHistoryTranscriptItem;
 
 export interface GuardrailFlags {
     crisisDetected: boolean;
@@ -50,6 +44,8 @@ export interface RealtimeSessionState {
     sessionStartedAt: string | null;
     persistingHistory: boolean;
     historyError: string | null;
+    historyId: string | null;
+    historyTotalCount: number;
     lastError: string | null;
     captionsEnabled: boolean;
     isAgentTyping: boolean;
@@ -73,7 +69,9 @@ export interface RealtimeSessionState {
     requestInterruption: () => void;
     resolveInterruption: () => void;
     refreshMoodInference: () => Promise<void>;
-    persistSessionHistory: (options?: { endedAt?: string }) => Promise<void>;
+    persistSessionHistory: (options?: { endedAt?: string; finalize?: boolean }) => Promise<void>;
+    exportPersistedHistory: (historyId?: string) => Promise<SessionHistoryRecord | null>;
+    purgePersistedHistory: (options?: { historyId?: string }) => Promise<string[]>;
     getCurrentMoodInference: () => MoodInferenceResult | null;
     getTopRecommendedIntervention: () => InterventionRecommendation | null;
     clearSession: () => void;
@@ -114,6 +112,33 @@ const normalizeRecommendations = (items: InterventionRecommendation[]): Interven
         .slice()
         .sort((a, b) => PRIORITY_VALUE[a.priority] - PRIORITY_VALUE[b.priority]);
 
+const PERSIST_TRANSCRIPT_LIMIT = 50;
+const PERSIST_MOOD_TIMELINE_LIMIT = 24;
+const PERSIST_RECOMMENDATION_LIMIT = 5;
+const AUTO_PERSIST_DELAY_MS = 4000;
+
+const isSafetyAnnotation = (annotation: string): boolean => /guardrail|safety|crisis/i.test(annotation);
+
+const pruneTranscriptsForPersistence = (items: TranscriptItem[]): TranscriptItem[] => {
+    if (items.length <= PERSIST_TRANSCRIPT_LIMIT) {
+        return items;
+    }
+
+    const flagged = items.filter((item) =>
+        (item.annotations ?? []).some((annotation) => isSafetyAnnotation(annotation))
+    );
+    const recent = items.slice(-PERSIST_TRANSCRIPT_LIMIT);
+    const merged = new Map<string, TranscriptItem>();
+
+    for (const entry of [...flagged, ...recent]) {
+        merged.set(entry.id, entry);
+    }
+
+    return Array.from(merged.values()).sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+};
+
+let historyAutoPersistHandle: ReturnType<typeof setTimeout> | null = null;
+
 type RealtimeSessionData = Omit<
     RealtimeSessionState,
     | "setConnectionState"
@@ -136,6 +161,8 @@ type RealtimeSessionData = Omit<
     | "resolveInterruption"
     | "refreshMoodInference"
     | "persistSessionHistory"
+    | "exportPersistedHistory"
+    | "purgePersistedHistory"
     | "getCurrentMoodInference"
     | "getTopRecommendedIntervention"
     | "clearSession"
@@ -168,6 +195,8 @@ const initialState: RealtimeSessionData = {
     sessionStartedAt: null as string | null,
     persistingHistory: false,
     historyError: null as string | null,
+    historyId: null as string | null,
+    historyTotalCount: 0,
     lastError: null as string | null,
     captionsEnabled: true,
     isAgentTyping: false,
@@ -191,33 +220,94 @@ const computeDurationMs = (startedAt: string | null, endedAt: string): number | 
 
 const buildHistoryRequestBody = (
     state: RealtimeSessionState,
-    endedAt: string,
-    durationMs: number | null
-) => ({
-    sessionId: state.sessionId,
-    transcripts: state.transcripts,
-    recommendedInterventions: state.recommendedInterventions,
-    guardrails: state.guardrails,
-    moodInferenceTimeline: state.moodTimeline,
-    durationMs,
-    startedAt: state.sessionStartedAt,
-    endedAt,
-    transport: state.transport,
-    locale: state.locale,
-    voice: state.voice,
-    metadata: {
-        lastMoodTrend: state.lastMoodTrend,
-        lastMoodDelta: state.lastMoodDelta,
-        lastInferenceAt: state.lastInferenceAt,
-    },
-});
+    options: {
+        snapshotAt: string;
+        endedAt: string | null;
+        finalize: boolean;
+        durationMs: number | null;
+    }
+) => {
+    const transcripts = pruneTranscriptsForPersistence(state.transcripts);
+
+    return {
+        sessionId: state.sessionId,
+        transcripts,
+        recommendedInterventions: state.recommendedInterventions.slice(0, PERSIST_RECOMMENDATION_LIMIT),
+        guardrails: state.guardrails,
+        moodInferenceTimeline: state.moodTimeline.slice(-PERSIST_MOOD_TIMELINE_LIMIT),
+        durationMs: options.durationMs,
+        startedAt: state.sessionStartedAt,
+        endedAt: options.endedAt,
+        transport: state.transport,
+        locale: state.locale,
+        voice: state.voice,
+        metadata: {
+            lastMoodTrend: state.lastMoodTrend,
+            lastMoodDelta: state.lastMoodDelta,
+            lastInferenceAt: state.lastInferenceAt,
+            snapshotAt: options.snapshotAt,
+            totalTranscriptCount: state.transcripts.length,
+        },
+    } satisfies Record<string, unknown>;
+};
 
 const canPersistHistory = (state: RealtimeSessionState): boolean =>
     Boolean(state.sessionId && state.transcripts.length > 0 && !state.persistingHistory);
 
-const submitHistoryPayload = async (body: unknown): Promise<void> => {
+const submitHistoryPayload = async (
+    body: Record<string, unknown>,
+    historyId: string | null
+): Promise<{ historyId: string; storedAt: string }> => {
+    const method = historyId ? "PATCH" : "POST";
     const response = await fetch("/api/realtime/history", {
-        method: "POST",
+        method,
+        headers: {
+            "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(historyId ? { ...body, historyId } : body),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error((payload as { error?: string }).error ?? "Failed to persist history");
+    }
+
+    return payload as { historyId: string; storedAt: string };
+};
+
+const fetchHistorySnapshot = async (historyId?: string): Promise<SessionHistoryRecord | null> => {
+    const params = new URLSearchParams();
+    if (historyId) {
+        params.set("historyId", historyId);
+    } else {
+        params.set("limit", "1");
+    }
+
+    const query = params.toString();
+    const response = await fetch(`/api/realtime/history${query ? `?${query}` : ""}`, {
+        method: "GET",
+        credentials: "include",
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error((payload as { error?: string }).error ?? "Failed to load history");
+    }
+
+    if (historyId) {
+        return payload as SessionHistoryRecord;
+    }
+
+    const histories = (payload as { histories?: SessionHistoryRecord[] }).histories ?? [];
+    return histories[0] ?? null;
+};
+
+const deleteHistoryRecords = async (body: { historyId?: string; purgeAll?: boolean }): Promise<string[]> => {
+    const response = await fetch("/api/realtime/history", {
+        method: "DELETE",
         headers: {
             "Content-Type": "application/json",
         },
@@ -225,10 +315,31 @@ const submitHistoryPayload = async (body: unknown): Promise<void> => {
         body: JSON.stringify(body),
     });
 
+    const payload = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error((payload as { error?: string }).error ?? "Failed to persist history");
+        throw new Error((payload as { error?: string }).error ?? "Failed to delete history");
     }
+
+    return (payload as { deleted?: string[] }).deleted ?? [];
+};
+
+const mergeTranscripts = (history: TranscriptItem[], fallback: TranscriptItem[]): TranscriptItem[] => {
+    if (history.length === 0) {
+        return fallback;
+    }
+
+    const merged = new Map<string, TranscriptItem>();
+    for (const item of history) {
+        merged.set(item.id, item);
+    }
+    for (const item of fallback) {
+        merged.set(item.id, item);
+    }
+
+    return Array.from(merged.values()).sort(
+        (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)
+    );
 };
 
 async function bootstrapSession(options: Partial<{ transport: TransportType; locale: string; voice: string }>) {
@@ -326,12 +437,13 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                             recommendedInterventions: recommendations.length ? recommendations : prev.recommendedInterventions,
                         };
                     });
+                    scheduleAutoPersist();
                 } catch (error) {
                     console.warn("Mood inference failed", error);
                 }
             };
 
-            const persistHistory = async (options?: { endedAt?: string }) => {
+            const persistHistory = async (options?: { endedAt?: string; finalize?: boolean }) => {
                 const state = get();
                 if (!canPersistHistory(state)) {
                     return;
@@ -339,19 +451,53 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
 
                 set({ persistingHistory: true, historyError: null });
 
-                const endedAt = options?.endedAt ?? new Date().toISOString();
-                const durationMs = computeDurationMs(state.sessionStartedAt, endedAt);
-                const body = buildHistoryRequestBody(state, endedAt, durationMs);
+                if (historyAutoPersistHandle) {
+                    clearTimeout(historyAutoPersistHandle);
+                    historyAutoPersistHandle = null;
+                }
+
+                const snapshotAt = new Date().toISOString();
+                const finalize = options?.finalize ?? false;
+                const endedAt = finalize ? options?.endedAt ?? snapshotAt : null;
+                const referencePoint = endedAt ?? snapshotAt;
+                const durationMs = computeDurationMs(state.sessionStartedAt, referencePoint);
+                const body = buildHistoryRequestBody(state, {
+                    snapshotAt,
+                    endedAt,
+                    finalize,
+                    durationMs,
+                });
 
                 try {
-                    await submitHistoryPayload(body);
-                    set({ persistingHistory: false, historyError: null });
+                    const result = await submitHistoryPayload(body, state.historyId);
+                    set({
+                        persistingHistory: false,
+                        historyError: null,
+                        historyId: result.historyId,
+                        historyTotalCount: state.transcripts.length,
+                    });
                 } catch (error) {
                     const message = error instanceof Error ? error.message : "Failed to persist history";
                     set({ persistingHistory: false, historyError: message });
                     console.error("Realtime history persistence failed", error);
                     throw error;
                 }
+            };
+
+            const scheduleAutoPersist = () => {
+                const state = get();
+                if (!state.sessionId || state.transcripts.length === 0 || state.persistingHistory) {
+                    return;
+                }
+
+                if (historyAutoPersistHandle) {
+                    clearTimeout(historyAutoPersistHandle);
+                }
+
+                historyAutoPersistHandle = setTimeout(() => {
+                    historyAutoPersistHandle = null;
+                    void persistHistory({ finalize: false });
+                }, AUTO_PERSIST_DELAY_MS);
             };
 
             const shouldTriggerFromEnergy = (previous: number, next: number) => Math.abs(previous - next) > 0.18;
@@ -378,10 +524,12 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                 pushTranscript: (item) => {
                     set((prev) => ({ transcripts: [...prev.transcripts, item] }));
                     void runMoodInference();
+                    scheduleAutoPersist();
                 },
                 replaceTranscripts: (items) => {
                     set({ transcripts: items });
                     void runMoodInference();
+                    scheduleAutoPersist();
                 },
                 appendAudioBuffer: (buffer) =>
                     set((prev) => ({
@@ -405,8 +553,10 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                                 : item
                         ),
                     })),
-                setRecommendedInterventions: (items) =>
-                    set({ recommendedInterventions: normalizeRecommendations(items) }),
+                setRecommendedInterventions: (items) => {
+                    set({ recommendedInterventions: normalizeRecommendations(items) });
+                    scheduleAutoPersist();
+                },
                 setRecentCheckIns: (items) => {
                     set({ recentCheckIns: items });
                     void runMoodInference();
@@ -419,6 +569,7 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                         },
                     }));
                     void runMoodInference();
+                    scheduleAutoPersist();
                 },
                 setAgentTyping: (value) => set({ isAgentTyping: value }),
                 toggleCaptions: () => set((prev) => ({ captionsEnabled: !prev.captionsEnabled })),
@@ -426,6 +577,63 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                 resolveInterruption: () => set({ interruptionRequested: false }),
                 refreshMoodInference: runMoodInference,
                 persistSessionHistory: persistHistory,
+                exportPersistedHistory: async (historyId) => {
+                    const state = get();
+                    const targetHistoryId = historyId ?? state.historyId ?? undefined;
+
+                    try {
+                        const record = await fetchHistorySnapshot(targetHistoryId);
+                        if (!record) {
+                            return null;
+                        }
+
+                        set((prev) => {
+                            const mergedTranscripts = mergeTranscripts(record.transcripts, prev.transcripts);
+                            return {
+                                transcripts: mergedTranscripts,
+                                historyId: record.historyId,
+                                historyTotalCount: record.totalTranscriptCount ?? record.transcripts.length,
+                                historyError: null,
+                            };
+                        });
+
+                        return record;
+                    } catch (error) {
+                        const message = error instanceof Error ? error.message : "Failed to load history";
+                        set({ historyError: message });
+                        throw error;
+                    }
+                },
+                purgePersistedHistory: async (options) => {
+                    try {
+                        const payload = options?.historyId
+                            ? { historyId: options.historyId }
+                            : { purgeAll: true };
+
+                        const currentState = get();
+                        const deleted = await deleteHistoryRecords(payload);
+                        const shouldReset =
+                            !options?.historyId ||
+                            (currentState.historyId !== null && deleted.includes(currentState.historyId));
+
+                        if (shouldReset) {
+                            set({
+                                historyId: null,
+                                historyTotalCount: 0,
+                                historyError: null,
+                                ...(options?.historyId ? {} : { transcripts: [] as TranscriptItem[] }),
+                            });
+                        } else {
+                            set({ historyError: null });
+                        }
+
+                        return deleted;
+                    } catch (error) {
+                        const message = error instanceof Error ? error.message : "Failed to delete history";
+                        set({ historyError: message });
+                        throw error;
+                    }
+                },
                 getCurrentMoodInference: () => {
                     const timeline = get().moodTimeline;
                     return timeline.length ? timeline[timeline.length - 1] : null;
@@ -434,7 +642,12 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                     const list = normalizeRecommendations(get().recommendedInterventions);
                     return list[0] ?? null;
                 },
-                clearSession: () =>
+                clearSession: () => {
+                    if (historyAutoPersistHandle) {
+                        clearTimeout(historyAutoPersistHandle);
+                        historyAutoPersistHandle = null;
+                    }
+
                     set({
                         sessionId: null,
                         clientSecret: null,
@@ -450,6 +663,8 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                         sessionStartedAt: null,
                         persistingHistory: false,
                         historyError: null,
+                        historyId: null,
+                        historyTotalCount: 0,
                         microphoneState: "muted",
                         captionsEnabled: true,
                         isAgentTyping: false,
@@ -459,13 +674,19 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                         toolCalls: [],
                         lastError: null,
                         interruptionRequested: false,
-                    }),
+                    });
+                },
                 startSession: async (options) => {
                     if (get().isInitializing) {
                         return;
                     }
 
                     set({ isInitializing: true, lastError: null, isAgentTyping: true });
+
+                    if (historyAutoPersistHandle) {
+                        clearTimeout(historyAutoPersistHandle);
+                        historyAutoPersistHandle = null;
+                    }
 
                     try {
                         const payload = await bootstrapSession(options ?? {});
@@ -494,9 +715,47 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                             lastInferenceAt: null,
                             recentCheckIns: payload.checkIns ?? [],
                             sessionStartedAt: new Date().toISOString(),
+                            historyError: null,
+                            historyTotalCount: 0,
                         });
                         if ((payload.checkIns ?? []).length) {
                             void runMoodInference();
+                        }
+
+                        const existingHistoryId = get().historyId;
+                        if (existingHistoryId) {
+                            void (async () => {
+                                try {
+                                    const record = await fetchHistorySnapshot(existingHistoryId);
+                                    if (!record) {
+                                        return;
+                                    }
+
+                                    set((prev) => {
+                                        const nextTotal = record.totalTranscriptCount ?? record.transcripts.length;
+                                        if (
+                                            record.historyId === prev.historyId &&
+                                            nextTotal <= prev.historyTotalCount
+                                        ) {
+                                            return { historyError: null };
+                                        }
+
+                                        const mergedTranscripts = mergeTranscripts(
+                                            record.transcripts,
+                                            prev.transcripts
+                                        );
+
+                                        return {
+                                            transcripts: mergedTranscripts,
+                                            historyId: record.historyId,
+                                            historyTotalCount: nextTotal,
+                                            historyError: null,
+                                        };
+                                    });
+                                } catch (error) {
+                                    console.warn("Failed to hydrate persisted history", error);
+                                }
+                            })();
                         }
                     } catch (error) {
                         const message = error instanceof Error ? error.message : "Failed to start realtime session";
@@ -509,11 +768,17 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                     if (!sessionId) return;
                     await closeSession(sessionId);
                     try {
-                        await persistHistory({ endedAt: new Date().toISOString() });
+                        await persistHistory({ endedAt: new Date().toISOString(), finalize: true });
                     } catch (error) {
                         const message = error instanceof Error ? error.message : "Failed to persist session history";
                         set({ lastError: message });
                     }
+
+                    if (historyAutoPersistHandle) {
+                        clearTimeout(historyAutoPersistHandle);
+                        historyAutoPersistHandle = null;
+                    }
+
                     set({
                         connectionState: "disconnected",
                         sessionId: null,
@@ -529,6 +794,8 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                         sessionStartedAt: null,
                         persistingHistory: false,
                         historyError: null,
+                        historyId: null,
+                        historyTotalCount: 0,
                         microphoneState: "muted",
                         captionsEnabled: true,
                         isAgentTyping: false,
@@ -582,6 +849,8 @@ export const useRealtimeSessionStore = create<RealtimeSessionState>()(
                 lastMoodTrend: state.lastMoodTrend,
                 lastMoodDelta: state.lastMoodDelta,
                 recentCheckIns: state.recentCheckIns.slice(0, 5),
+                historyId: state.historyId,
+                historyTotalCount: state.historyTotalCount,
             }),
         }
     )

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/appwrite/api-auth";
 import { databases, DATABASE_ID, COLLECTION_IDS } from "@/lib/appwrite/server";
+import { recordInterventionAnalytics, type MoodInferenceSnapshot } from "@/lib/interventions/analytics";
 
 interface CompleteInterventionBody {
     interventionSessionId?: string;
@@ -9,14 +10,34 @@ interface CompleteInterventionBody {
     calmnessDelta?: number;
     feedback?: string;
     sessionItemId?: string;
-    transcriptSnapshot?: unknown;
     realtimeSessionId?: string;
+    moodInference?: unknown;
 }
 
 function ensureValid(body: CompleteInterventionBody) {
     if (!body.interventionSessionId || typeof body.interventionSessionId !== "string") {
         throw new Error("INVALID_BODY");
     }
+}
+
+function normalizeMoodInference(value: unknown): MoodInferenceSnapshot | null {
+    if (!value || typeof value !== "object") {
+        return null;
+    }
+
+    const payload = value as Record<string, unknown>;
+    const sentiment = typeof payload.sentiment === "string" ? payload.sentiment : undefined;
+    const arousal = typeof payload.arousal === "string" ? payload.arousal : undefined;
+    const recommendedAction = typeof payload.recommendedAction === "string" ? payload.recommendedAction : undefined;
+
+    const allowedSentiments = new Set(["positive", "neutral", "negative"]);
+    const allowedArousal = new Set(["low", "medium", "high"]);
+
+    return {
+        sentiment: allowedSentiments.has(sentiment ?? "") ? (sentiment as MoodInferenceSnapshot["sentiment"]) : undefined,
+        arousal: allowedArousal.has(arousal ?? "") ? (arousal as MoodInferenceSnapshot["arousal"]) : undefined,
+        recommendedAction,
+    };
 }
 
 export async function POST(request: NextRequest) {
@@ -34,7 +55,6 @@ export async function POST(request: NextRequest) {
             calmnessDelta: body.calmnessDelta ?? null,
             feedback: body.feedback ?? null,
             sessionItemId: body.sessionItemId ?? null,
-            transcriptSnapshot: body.transcriptSnapshot ?? null,
         };
 
         const sessionId = body.interventionSessionId!;
@@ -50,6 +70,23 @@ export async function POST(request: NextRequest) {
         if (document.userId !== userId) {
             // Revert to avoid leaking other user's data
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const moodInference = normalizeMoodInference(body.moodInference);
+        let analytics: { moodDelta: number | null; effectivenessScore: number | null } | null = null;
+
+        try {
+            analytics = await recordInterventionAnalytics({
+                userId,
+                session: document,
+                helpfulnessRating: typeof body.helpfulnessRating === "number" ? body.helpfulnessRating : null,
+                calmnessDelta: typeof body.calmnessDelta === "number" ? body.calmnessDelta : null,
+                completedAt,
+                sessionItemId: (document.sessionItemId as string | null) ?? null,
+                moodInference,
+            });
+        } catch (error) {
+            console.warn("Failed to record intervention analytics", error);
         }
 
         if (body.realtimeSessionId) {
@@ -89,6 +126,7 @@ export async function POST(request: NextRequest) {
             durationSeconds: payload.durationSeconds,
             helpfulnessRating: payload.helpfulnessRating,
             calmnessDelta: payload.calmnessDelta,
+            analytics,
         });
     } catch (error) {
         if (error instanceof Error) {

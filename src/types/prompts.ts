@@ -57,7 +57,7 @@ export interface ConversationContext {
     recentInterventions: string[];
     userPreferences: {
         aiPersonality: string;
-        preferredInterventions: string[];
+        preferredInterventionTypes: string[];
     };
     conversationHistory: ChatMessage[];
     currentMood?: {

@@ -57,11 +57,15 @@ export const interventionSessionSchema = z.object({
         'distraction',
         'social-support',
     ]),
-    duration: z.number().min(0),
+    durationSeconds: z.number().min(0),
     completed: z.boolean(),
     rating: z.number().min(1).max(5).optional(),
     notes: z.string().max(500, 'Notes are too long').optional(),
     triggerMoodId: z.string().optional(),
+    calmnessDelta: z.number().min(-10).max(10).optional(),
+    sessionItemId: z.string().optional(),
+    realtimeSessionId: z.string().optional(),
+    context: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**

@@ -6,15 +6,14 @@ import {
     OpenAIRealtimeWebSocket,
     type OpenAIRealtimeWebSocketOptions,
     RealtimeAgent,
-    type RealtimeContextData,
+    type RealtimeAgentConfiguration,
     type RealtimeSessionOptions,
     type RealtimeSessionConnectOptions,
     type RealtimeSessionConfig,
     RealtimeSession,
     type RealtimeTransportLayer,
-    type RealtimeOutputGuardrail,
 } from "@openai/agents-realtime";
-import type { FunctionTool } from "@openai/agents-core";
+import type { Tool } from "@openai/agents-core";
 
 export type TransportKind = "webrtc" | "websocket";
 
@@ -37,7 +36,7 @@ const DEFAULT_REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL ?? "gpt-4o-real
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, onTimeoutMessage: string): Promise<T> {
-    let timeoutHandle: NodeJS.Timeout | null = null;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
     const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutHandle = setTimeout(() => {
@@ -173,21 +172,19 @@ export interface RealtimeAgentPersonaContext {
     guardrailDirectives?: string[];
 }
 
-export interface CreateRealtimeAgentOptions<TContext = RealtimeAgentPersonaContext> {
-    name?: string;
-    instructions: string;
-    voice?: string;
-    handoffs?: RealtimeAgent<TContext>[];
-    tools?: FunctionTool<RealtimeContextData<TContext>>[];
-}
+export type CreateRealtimeAgentOptions<TContext = RealtimeAgentPersonaContext> =
+    Omit<RealtimeAgentConfiguration<TContext>, "name"> & {
+        name?: string;
+        instructions: string;
+        tools?: Tool<TContext>[];
+    };
 
 export function createRealtimeAgent<TContext = RealtimeAgentPersonaContext>(options: CreateRealtimeAgentOptions<TContext>): RealtimeAgent<TContext> {
+    const { name, ...rest } = options;
+
     return new RealtimeAgent<TContext>({
-        name: options.name ?? "Octo-Calm Companion",
-        instructions: options.instructions,
-        voice: options.voice,
-        tools: options.tools,
-        handoffs: options.handoffs,
+        ...rest,
+        name: name ?? "Octo-Calm Companion",
     });
 }
 
@@ -202,7 +199,6 @@ export interface BuildSessionConfigurationOptions {
     preferenceSummary?: string[];
     moodDigest?: string;
     locale?: string;
-    outputGuardrails?: RealtimeOutputGuardrail[];
     toolDefinitions?: RealtimeSessionConfig["tools"];
     modalities?: ("text" | "audio")[];
 }
@@ -249,7 +245,6 @@ export function buildRealtimeSessionConfig(options: BuildSessionConfigurationOpt
             moodDigest: options.moodDigest,
             transport: options.transport,
         },
-        outputGuardrails: options.outputGuardrails,
     } satisfies Partial<RealtimeSessionConfig>;
 }
 

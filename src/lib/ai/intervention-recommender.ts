@@ -10,6 +10,7 @@ export interface RecommendationContext {
         rating?: number;
         calmnessDelta?: number | null;
         completedAt: string;
+        effectivenessScore?: number | null;
     }>;
 }
 
@@ -87,6 +88,15 @@ function adjustPriorityForHistory(type: InterventionType, context: Recommendatio
     const latest = context.recentlyCompleted.find((item) => item.type === type);
     if (!latest) {
         return 0;
+    }
+
+    if (typeof latest.effectivenessScore === "number") {
+        if (latest.effectivenessScore >= 0.6) {
+            return 1;
+        }
+        if (latest.effectivenessScore <= 0.2) {
+            return -1;
+        }
     }
 
     if (latest.rating && latest.rating >= 4) {
