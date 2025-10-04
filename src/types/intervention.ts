@@ -1,5 +1,21 @@
 import { Models } from 'appwrite';
 
+export const INTERVENTION_TYPE_VALUES = [
+    'breathing',
+    'meditation',
+    'journaling',
+    'physical-activity',
+    'grounding',
+    'cognitive-reframing',
+    'distraction',
+    'social-support',
+] as const;
+
+export const ANALYTICS_INTERVENTION_TYPE_VALUES = [
+    ...INTERVENTION_TYPE_VALUES,
+    'other',
+] as const;
+
 /**
  * Mood intensity levels
  */
@@ -57,20 +73,14 @@ export interface InterventionSession extends Models.Document {
 /**
  * Intervention types
  */
-export type InterventionType =
-    | 'breathing'
-    | 'meditation'
-    | 'journaling'
-    | 'physical-activity'
-    | 'grounding'
-    | 'cognitive-reframing'
-    | 'distraction'
-    | 'social-support';
+export type InterventionType = typeof INTERVENTION_TYPE_VALUES[number];
+
+export type InterventionAnalyticsType = typeof ANALYTICS_INTERVENTION_TYPE_VALUES[number];
 
 export interface InterventionAnalytics extends Models.Document {
     userId: string;
     interventionSessionId: string;
-    interventionType: InterventionType;
+    interventionType: InterventionAnalyticsType;
     completedAt: string;
     moodDelta?: number | null;
     calmnessDelta?: number | null;

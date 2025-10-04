@@ -48,17 +48,17 @@ export function SessionControls({
         {isInitializing ? (
           <span className="flex items-center gap-2">
             <PhoneCall className="h-4 w-4 animate-pulse" />
-            Connecting...
+            Connecting companion…
           </span>
         ) : isActive ? (
           <span className="flex items-center gap-2">
             <PhoneOff className="h-4 w-4" />
-            End Session
+            End companion session
           </span>
         ) : (
           <span className="flex items-center gap-2">
             <PhoneCall className="h-4 w-4" />
-            Start Session
+            Start companion session
           </span>
         )}
       </Button>
@@ -75,7 +75,7 @@ export function SessionControls({
           ) : (
             <Mic className="h-4 w-4" />
           )}
-          {microphoneState === "muted" ? "Unmute" : "Mute"}
+          {microphoneState === "muted" ? "Unmute mic" : "Mute mic"}
         </span>
       </Button>
 
@@ -87,7 +87,7 @@ export function SessionControls({
       >
         <span className="flex items-center gap-2">
           <Mic className="h-4 w-4" />
-          {pushToTalkActive ? "Release to send" : "Push to talk"}
+          {pushToTalkActive ? "Release to send" : "Hold to speak"}
         </span>
       </Button>
     </div>

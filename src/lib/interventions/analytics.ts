@@ -1,7 +1,7 @@
 import { ID, Permission, Query, Role } from "node-appwrite";
 import { databases, DATABASE_ID, COLLECTION_IDS } from "@/lib/appwrite/server";
 import { scoreEffectiveness } from "@/lib/ai/mood-inference";
-import type { InterventionType } from "@/types/intervention";
+import type { InterventionAnalyticsType } from "@/types/intervention";
 
 interface MoodCheckInDoc {
     mood?: number;
@@ -31,7 +31,7 @@ export interface RecordAnalyticsParams {
     moodInference?: MoodInferenceSnapshot | null;
 }
 
-const INTERVENTION_TYPES: InterventionType[] = [
+const INTERVENTION_TYPES: InterventionAnalyticsType[] = [
     "breathing",
     "meditation",
     "journaling",
@@ -40,14 +40,15 @@ const INTERVENTION_TYPES: InterventionType[] = [
     "cognitive-reframing",
     "distraction",
     "social-support",
+    "other",
 ];
 
-function coerceInterventionType(value: unknown): InterventionType {
-    const candidate = typeof value === "string" ? (value as InterventionType) : null;
+function coerceInterventionType(value: unknown): InterventionAnalyticsType {
+    const candidate = typeof value === "string" ? (value as InterventionAnalyticsType) : null;
     if (candidate && INTERVENTION_TYPES.includes(candidate)) {
         return candidate;
     }
-    return "grounding";
+    return "other";
 }
 
 function toDate(value: string | null | undefined): Date | null {

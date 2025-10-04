@@ -9,27 +9,103 @@ import type {
 export type SessionHistoryDocument = Models.Document & {
     userId: string;
     sessionId?: string;
-    transcripts?: unknown[];
-    recommendedInterventions?: unknown[];
-    guardrails?: unknown;
-    moodInferenceTimeline?: unknown[];
+    transcripts?: unknown[] | string;
+    recommendedInterventions?: unknown[] | string;
+    guardrails?: unknown | string;
+    moodInferenceTimeline?: unknown[] | string;
     durationMs?: number | null;
     startedAt?: string | null;
     endedAt?: string | null;
     transport?: "webrtc" | "websocket" | null;
     locale?: string | null;
     voice?: string | null;
-    metadata?: Record<string, unknown>;
+    metadata?: Record<string, unknown> | string;
 };
 
+function parseJsonArray(raw: unknown): unknown[] {
+    if (Array.isArray(raw)) {
+        return raw;
+    }
+
+    if (typeof raw !== "string" || raw.length === 0) {
+        return [];
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.warn("Failed to parse JSON array", error);
+        return [];
+    }
+}
+
+function coerceTranscriptSource(input: unknown): unknown[] {
+    if (typeof input === "string") {
+        return parseJsonArray(input);
+    }
+
+    return Array.isArray(input) ? input : [];
+}
+
+function parseMetadata(raw: unknown): Record<string, unknown> {
+    if (typeof raw === "string") {
+        if (!raw.length) {
+            return {};
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+        } catch (error) {
+            console.warn("Failed to parse session metadata", error);
+            return {};
+        }
+    }
+
+    if (raw && typeof raw === "object") {
+        return { ...(raw as Record<string, unknown>) };
+    }
+
+    return {};
+}
+
+function extractMoodTimeline(
+    doc: SessionHistoryDocument,
+    metadata: Record<string, unknown>
+): unknown[] {
+    const fromMetadata = metadata.moodInferenceTimeline;
+    if (Array.isArray(fromMetadata)) {
+        return fromMetadata;
+    }
+
+    if (typeof doc.moodInferenceTimeline === "string") {
+        try {
+            const parsed = JSON.parse(doc.moodInferenceTimeline);
+            if (Array.isArray(parsed)) {
+                return parsed;
+            }
+        } catch (error) {
+            console.warn("Failed to parse mood inference timeline", error);
+        }
+    }
+
+    if (Array.isArray(doc.moodInferenceTimeline)) {
+        return doc.moodInferenceTimeline;
+    }
+
+    return [];
+}
+
 export function normalizeTranscripts(input: unknown): SessionHistoryTranscriptItem[] {
-    if (!Array.isArray(input)) {
+    const source = coerceTranscriptSource(input);
+
+    if (source.length === 0) {
         return [];
     }
 
     const seen = new Set<string>();
 
-    return input
+    return source
         .map((item) => (typeof item === "object" && item !== null ? item : null))
         .filter((item): item is Record<string, unknown> => item !== null)
         .map((item) => {
@@ -62,6 +138,15 @@ export function normalizeTranscripts(input: unknown): SessionHistoryTranscriptIt
 }
 
 export function normalizeGuardrails(raw: unknown): SessionGuardrailSnapshot | null {
+    if (typeof raw === "string") {
+        try {
+            return normalizeGuardrails(JSON.parse(raw) as unknown);
+        } catch (error) {
+            console.warn("Failed to parse guardrail snapshot", error);
+            return null;
+        }
+    }
+
     if (typeof raw !== "object" || raw === null) {
         return null;
     }
@@ -78,22 +163,28 @@ export function normalizeGuardrails(raw: unknown): SessionGuardrailSnapshot | nu
 
 export function mapSessionHistoryDocument(doc: SessionHistoryDocument): SessionHistoryRecord {
     const transcripts = normalizeTranscripts(doc.transcripts);
+    const metadataRaw = parseMetadata(doc.metadata);
+    const moodTimeline = extractMoodTimeline(doc, metadataRaw);
+
+    if ("moodInferenceTimeline" in metadataRaw) {
+        delete metadataRaw.moodInferenceTimeline;
+    }
 
     return {
         historyId: doc.$id,
         sessionId: doc.sessionId ?? null,
         transcripts,
         totalTranscriptCount: transcripts.length,
-        recommendedInterventions: Array.isArray(doc.recommendedInterventions) ? doc.recommendedInterventions : [],
+        recommendedInterventions: parseJsonArray(doc.recommendedInterventions),
         guardrails: normalizeGuardrails(doc.guardrails),
-        moodInferenceTimeline: Array.isArray(doc.moodInferenceTimeline) ? doc.moodInferenceTimeline : [],
+        moodInferenceTimeline: moodTimeline,
         durationMs: typeof doc.durationMs === "number" ? doc.durationMs : null,
         startedAt: doc.startedAt ?? null,
         endedAt: doc.endedAt ?? null,
         transport: doc.transport ?? null,
         locale: doc.locale ?? null,
         voice: doc.voice ?? null,
-        metadata: doc.metadata ?? {},
+        metadata: metadataRaw ?? {},
         createdAt: doc.$createdAt,
         updatedAt: doc.$updatedAt,
     };

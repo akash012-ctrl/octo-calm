@@ -220,9 +220,15 @@ export function MoodChart({ checkIns, className }: MoodChartProps) {
               stroke="hsl(var(--primary))"
               strokeWidth={2}
               dot={(props) => {
-                const { cx, cy, payload } = props;
+                const { cx, cy, payload, index } = props as {
+                  cx: number;
+                  cy: number;
+                  payload: (typeof chartData)[number];
+                  index: number;
+                };
                 return (
                   <circle
+                    key={`mood-dot-${payload.fullDate ?? index}`}
                     cx={cx}
                     cy={cy}
                     r={payload.hasGuardrail ? 6 : 4}

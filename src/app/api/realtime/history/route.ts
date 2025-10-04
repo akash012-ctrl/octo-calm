@@ -47,10 +47,83 @@ function validateBody(body: SessionHistoryBody) {
     assertOptionalNumber(body.durationMs, "INVALID_DURATION");
 }
 
+function stringifyJson(value: unknown): string {
+    try {
+        return JSON.stringify(value ?? null);
+    } catch (error) {
+        console.warn("Failed to stringify history payload", error);
+        return "null";
+    }
+}
+
+function buildHistoryDocumentPayload(userId: string, body: SessionHistoryBody) {
+    const metadataPayload = {
+        ...(body.metadata ?? {}),
+        moodInferenceTimeline: body.moodInferenceTimeline ?? [],
+    } satisfies Record<string, unknown>;
+
+    const document: Record<string, unknown> = {
+        userId,
+        transcripts: stringifyJson(body.transcripts ?? []),
+        recommendedInterventions: stringifyJson(body.recommendedInterventions ?? []),
+        guardrails: stringifyJson(body.guardrails ?? null),
+        metadata: stringifyJson(metadataPayload),
+        durationMs: body.durationMs ?? null,
+        startedAt: body.startedAt ?? null,
+        endedAt: body.endedAt ?? null,
+        transport: body.transport ?? null,
+        locale: body.locale ?? null,
+        voice: body.voice ?? null,
+    };
+
+    document.sessionId = body.sessionId ?? null;
+
+    return document;
+}
+
+function parseJsonField<T>(raw: unknown, fallback: T): T {
+    if (typeof raw === "string") {
+        if (!raw.length) {
+            return fallback;
+        }
+        try {
+            return JSON.parse(raw) as T;
+        } catch (error) {
+            console.warn("Failed to parse history document field", error);
+            return fallback;
+        }
+    }
+
+    if (raw === null || raw === undefined) {
+        return fallback;
+    }
+
+    return raw as T;
+}
+
 type SessionHistoryDocWithUser = SessionHistoryDocument & { userId: string };
 
 function sanitizeHistoryDocument(doc: SessionHistoryDocWithUser): SessionHistoryRecord {
-    return mapSessionHistoryDocument(doc);
+    const transcripts = parseJsonField<unknown[]>(doc.transcripts, []);
+    const recommended = parseJsonField<unknown[]>(doc.recommendedInterventions, []);
+    const guardrails = parseJsonField<unknown>(doc.guardrails, null);
+    const metadata = parseJsonField<Record<string, unknown>>(doc.metadata, {});
+    const timelineFromMetadata = Array.isArray(metadata.moodInferenceTimeline)
+        ? (metadata.moodInferenceTimeline as unknown[])
+        : parseJsonField<unknown[]>(doc.moodInferenceTimeline, []);
+
+    if ("moodInferenceTimeline" in metadata) {
+        delete metadata.moodInferenceTimeline;
+    }
+
+    return mapSessionHistoryDocument({
+        ...doc,
+        transcripts,
+        recommendedInterventions: recommended,
+        guardrails,
+        moodInferenceTimeline: timelineFromMetadata,
+        metadata,
+    });
 }
 
 async function ensureHistoryOwnership(userId: string, historyId: string): Promise<SessionHistoryDocWithUser> {
@@ -76,21 +149,7 @@ export async function POST(request: NextRequest) {
             DATABASE_ID,
             COLLECTION_IDS.SESSION_HISTORY,
             ID.unique(),
-            {
-                userId,
-                sessionId: body.sessionId,
-                transcripts: body.transcripts,
-                recommendedInterventions: body.recommendedInterventions ?? [],
-                guardrails: body.guardrails ?? null,
-                moodInferenceTimeline: body.moodInferenceTimeline ?? [],
-                durationMs: body.durationMs ?? null,
-                startedAt: body.startedAt ?? null,
-                endedAt: body.endedAt ?? null,
-                transport: body.transport ?? null,
-                locale: body.locale ?? null,
-                voice: body.voice ?? null,
-                metadata: body.metadata ?? {},
-            }
+            buildHistoryDocumentPayload(userId, body)
         ) as unknown as SessionHistoryDocWithUser;
 
         return NextResponse.json({
@@ -133,20 +192,7 @@ export async function PATCH(request: NextRequest) {
             DATABASE_ID,
             COLLECTION_IDS.SESSION_HISTORY,
             body.historyId!,
-            {
-                sessionId: body.sessionId,
-                transcripts: body.transcripts,
-                recommendedInterventions: body.recommendedInterventions ?? [],
-                guardrails: body.guardrails ?? null,
-                moodInferenceTimeline: body.moodInferenceTimeline ?? [],
-                durationMs: body.durationMs ?? null,
-                startedAt: body.startedAt ?? null,
-                endedAt: body.endedAt ?? null,
-                transport: body.transport ?? null,
-                locale: body.locale ?? null,
-                voice: body.voice ?? null,
-                metadata: body.metadata ?? {},
-            }
+            buildHistoryDocumentPayload(userId, body)
         ) as unknown as SessionHistoryDocWithUser;
 
         return NextResponse.json({

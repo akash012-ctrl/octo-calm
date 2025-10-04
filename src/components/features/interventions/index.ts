@@ -5,3 +5,4 @@ export * from "./ProgressBar";
 export * from "./InterventionFeedback";
 export * from "./GroundingExercise";
 export * from "./BreathingExercise";
+export * from "./InterventionHub";

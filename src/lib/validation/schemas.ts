@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { INTERVENTION_TYPE_VALUES } from '@/types/intervention';
 
 /**
  * Authentication schemas
@@ -37,7 +38,7 @@ export const moodEntrySchema = z.object({
         'happy',
         'energetic',
     ]),
-    intensity: z.number().min(1).max(5),
+    intensity: z.number().min(1).max(10),
     notes: z.string().max(500, 'Notes are too long').optional(),
     triggers: z.array(z.string()).max(10, 'Too many triggers').optional(),
     activities: z.array(z.string()).max(10, 'Too many activities').optional(),
@@ -47,16 +48,7 @@ export const moodEntrySchema = z.object({
  * Intervention schemas
  */
 export const interventionSessionSchema = z.object({
-    interventionType: z.enum([
-        'breathing',
-        'meditation',
-        'journaling',
-        'physical-activity',
-        'grounding',
-        'cognitive-reframing',
-        'distraction',
-        'social-support',
-    ]),
+    interventionType: z.enum(INTERVENTION_TYPE_VALUES),
     durationSeconds: z.number().min(0),
     completed: z.boolean(),
     rating: z.number().min(1).max(5).optional(),
@@ -77,18 +69,7 @@ export const userPreferencesSchema = z.object({
     emailNotifications: z.boolean(),
     moodReminderTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).optional(),
     moodReminderFrequency: z.enum(['daily', 'twice-daily', 'weekly', 'disabled']),
-    preferredInterventionTypes: z.array(
-        z.enum([
-            'breathing',
-            'meditation',
-            'journaling',
-            'physical-activity',
-            'grounding',
-            'cognitive-reframing',
-            'distraction',
-            'social-support',
-        ])
-    ),
+    preferredInterventionTypes: z.array(z.enum(INTERVENTION_TYPE_VALUES)),
     aiPersonality: z.enum(['calm', 'encouraging', 'professional', 'friendly']),
     dataRetentionDays: z.number().min(7).max(365),
 });

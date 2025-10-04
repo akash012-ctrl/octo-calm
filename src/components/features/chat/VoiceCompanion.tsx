@@ -25,11 +25,15 @@ export function VoiceCompanion({
   voice = "alloy",
 }: VoiceCompanionProps) {
   const [hasAttemptedStart, setHasAttemptedStart] = useState(false);
-  const sessionMeta = useRealtimeSessionStore((state) => ({
-    sessionId: state.sessionId,
-    connectionState: state.connectionState,
-    transport: state.transport,
-  }));
+  const sessionId = useRealtimeSessionStore((state) => state.sessionId);
+  const connectionState = useRealtimeSessionStore(
+    (state) => state.connectionState
+  );
+  const transport = useRealtimeSessionStore((state) => state.transport);
+  const sessionMeta = useMemo(
+    () => ({ sessionId, connectionState, transport }),
+    [sessionId, connectionState, transport]
+  );
   const transcripts = useRealtimeSessionStore((state) => state.transcripts);
   const guardrails = useRealtimeSessionStore((state) => state.guardrails);
   const recommendedInterventions = useRealtimeSessionStore(
