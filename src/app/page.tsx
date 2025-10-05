@@ -50,7 +50,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto text-center space-y-8">
           {/* Animated Octopus Avatar */}
           <div className="flex justify-center mb-8">
-            <div className="brand-gradient w-32 h-32 rounded-full flex items-center justify-center text-7xl animate-pulse shadow-octo-elevated">
+            <div className="brand-gradient w-32 h-32 rounded-full flex items-center justify-center text-7xl animate-pulse shadow-primary-glow">
               🐙
             </div>
           </div>
@@ -111,7 +111,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Mood Check-ins */}
-            <Card className="octo-card">
+            <Card className="octo-card shadow-primary-glow">
               <CardHeader>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-[color:var(--octo-primary)]/10">
                   <Activity className="w-6 h-6 text-brand-primary" />
@@ -125,7 +125,7 @@ export default function Home() {
             </Card>
 
             {/* Realtime Voice */}
-            <Card className="octo-card">
+            <Card className="octo-card shadow-primary-glow">
               <CardHeader>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-[color:var(--octo-secondary)]/10">
                   <MessageCircle className="w-6 h-6 text-brand-secondary" />
@@ -139,7 +139,7 @@ export default function Home() {
             </Card>
 
             {/* Smart Interventions */}
-            <Card className="octo-card">
+            <Card className="octo-card shadow-primary-glow">
               <CardHeader>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-[color:var(--octo-success)]/10">
                   <Brain className="w-6 h-6 text-[color:var(--octo-success)]" />
@@ -153,7 +153,7 @@ export default function Home() {
             </Card>
 
             {/* Crisis Support */}
-            <Card className="octo-card">
+            <Card className="octo-card shadow-primary-glow">
               <CardHeader>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-[color:var(--octo-error)]/10">
                   <Shield className="w-6 h-6 text-[color:var(--octo-error)]" />
@@ -167,7 +167,7 @@ export default function Home() {
             </Card>
 
             {/* Peer Support */}
-            <Card className="octo-card">
+            <Card className="octo-card shadow-primary-glow">
               <CardHeader>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-[color:var(--octo-info)]/10">
                   <Heart className="w-6 h-6 text-[color:var(--octo-info)]" />
@@ -181,7 +181,7 @@ export default function Home() {
             </Card>
 
             {/* Sleep & Routines */}
-            <Card className="octo-card">
+            <Card className="octo-card shadow-primary-glow">
               <CardHeader>
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 bg-[color:var(--octo-warning)]/10">
                   <Moon className="w-6 h-6 text-[color:var(--octo-warning)]" />
@@ -200,7 +200,7 @@ export default function Home() {
       {/* CTA Section */}
       <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <div className="max-w-4xl mx-auto">
-          <Card className="brand-gradient border-none shadow-octo-elevated rounded-3xl overflow-hidden">
+          <Card className="brand-gradient border-none shadow-primary-glow rounded-3xl overflow-hidden">
             <CardContent className="p-12 text-center text-white">
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">
                 Ready to feel a little lighter?

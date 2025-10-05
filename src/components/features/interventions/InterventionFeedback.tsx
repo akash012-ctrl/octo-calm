@@ -41,14 +41,13 @@ export function InterventionFeedback({
   }, [baselineMood, currentMood]);
 
   return (
-    <Card className="border-primary/20">
+    <Card className="border-primary/20 shadow-primary-glow">
       <CardHeader className="border-b bg-primary/5">
         <CardTitle className="text-lg font-semibold">
           How helpful was this?
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Your feedback trains the companion to tailor future interventions.
-          Voice notes are converted to private transcripts.
+          A quick note here tunes the next session.
         </p>
       </CardHeader>
       <CardContent className="space-y-6 p-6">
@@ -84,14 +83,11 @@ export function InterventionFeedback({
           </label>
           {calmnessDelta !== null ? (
             <p>
-              You shifted {Math.abs(calmnessDelta)} points toward{" "}
-              {calmnessDelta >= 0 ? "calmer" : "higher arousal"}.
+              Shifted {Math.abs(calmnessDelta)} points toward{" "}
+              {calmnessDelta >= 0 ? "more calm" : "higher energy"}.
             </p>
           ) : (
-            <p>
-              We’ll compare your mood before and after sessions to track
-              improvements.
-            </p>
+            <p>We’ll track the change for you after each session.</p>
           )}
         </div>
 
@@ -101,7 +97,7 @@ export function InterventionFeedback({
           </label>
           <textarea
             className="h-24 w-full resize-none rounded-md border border-input bg-background p-3 text-sm text-foreground shadow-sm outline-none focus-visible:border-primary focus-visible:ring-1 focus-visible:ring-primary"
-            placeholder="Share what shifted for you, or note anything that didn’t resonate."
+            placeholder="Capture a takeaway or anything that felt off."
             value={feedback}
             onChange={(event) => setFeedback(event.target.value)}
           />
@@ -115,8 +111,7 @@ export function InterventionFeedback({
           </button>
           {capturingVoice && (
             <p className="text-xs text-primary">
-              Listening… We’ll transcribe your note and attach it securely to
-              this session.
+              Listening… we’ll attach a private transcript to this session.
             </p>
           )}
         </div>

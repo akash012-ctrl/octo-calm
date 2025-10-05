@@ -42,8 +42,8 @@ export function InterventionCard({
   return (
     <Card
       className={cn(
-        "flex h-full flex-col border-primary/20 transition hover:border-primary/40",
-        active && "border-primary shadow-lg",
+        "flex h-full flex-col border-primary/20 shadow-primary-glow/50 transition hover:border-primary/40",
+        active && "border-primary",
         disabled && "pointer-events-none opacity-60",
         className
       )}
@@ -67,8 +67,7 @@ export function InterventionCard({
       </CardHeader>
       <CardContent className="flex-1 text-sm text-muted-foreground">
         <p>
-          Guided voice support to help you reset in moments of heightened
-          stress. Audio is synced with captions and gentle animation cues.
+          Companion voice, captions, and soft cues keep every reset on pace.
         </p>
       </CardContent>
       <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -83,7 +82,7 @@ export function InterventionCard({
         </Button>
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           onClick={() => onPreviewVoice?.(id)}
           disabled={disabled}
           className="w-full sm:w-auto"

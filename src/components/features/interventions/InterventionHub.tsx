@@ -43,25 +43,25 @@ type InterventionOption = {
 const INTERVENTION_OPTIONS: InterventionOption[] = [
   {
     id: "grounding_60s",
-    title: "Grounding 60s",
-    description: "5-4-3-2-1 sensory reset to ease anxious spirals.",
+    title: "Grounding",
+    description: "Ease Youself",
     durationMinutes: 1,
-    voicePersona: "Nova • Calm grounding cadence",
+    voicePersona: "Calm",
     icon: <Sparkles className="h-5 w-5" />,
     previewCopy:
-      "The companion softens their tone, invites a 5-4-3-2-1 scan, and mirrors back your observations to reinforce safety cues.",
-    rationale: "Great when negative thoughts loop or crisis cues appear.",
+      "Companion guides a 5-4-3-2-1 scan and mirrors your senses back.",
+    rationale: "Best for anxious loops or when you need safety cues.",
   },
   {
     id: "box_breathing_90s",
-    title: "Box Breathing 90s",
-    description: "Guided 4-4-4-4 breathing with ambient sound layers.",
+    title: "Box Breathing",
+    description: "Guided breathing",
     durationMinutes: 2,
-    voicePersona: "Lyra • Steady rhythmic pacing",
+    voicePersona: "rhythmic pacing",
     icon: <Wind className="h-5 w-5" />,
     previewCopy:
-      "Expect counted inhales, holds, and exhales with gentle posture reminders and options for rain or ocean ambience.",
-    rationale: "Use when arousal spikes or focus feels scattered.",
+      "Counted inhales, holds, and exhales with optional rain or ocean.",
+    rationale: "Use when energy spikes or focus feels scattered.",
   },
 ];
 
@@ -276,22 +276,20 @@ export function InterventionHub({
   const handleCancelIntervention = () => {
     setNotice({
       tone: "info",
-      message: "Intervention paused. You can resume anytime.",
+      message: "Paused—jump back in whenever you're ready.",
     });
     resetState();
   };
 
   return (
     <div className={cn("w-full", className)}>
-      <Card className="octo-card">
+      <Card className="octo-card shadow-primary-glow">
         <CardHeader className="flex flex-col gap-2">
           <CardTitle className="flex items-center gap-2 text-2xl font-semibold">
             <HeartPulse className="h-5 w-5 text-primary" /> Guided Interventions
           </CardTitle>
           <CardDescription>
-            Quick companion-led exercises to stabilize mood between check-ins.
-            Start one anytime or follow live recommendations from the realtime
-            session.
+            Start a quick reset now or follow the companion’s latest pick.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -310,7 +308,7 @@ export function InterventionHub({
             </div>
           )}
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 p-4">
             {INTERVENTION_OPTIONS.map((option) => {
               const isRecommended = recommendedOptionId === option.id;
               const isLoading = loadingId === option.id;
@@ -323,7 +321,7 @@ export function InterventionHub({
                     isRecommended &&
                       'after:absolute after:right-3 after:top-3 after:text-[10px] after:font-semibold after:uppercase after:tracking-wide after:text-primary after:content-["Recommended"]'
                   )}
-                >
+                > 
                   <InterventionCard
                     id={option.id}
                     title={option.title}
@@ -340,9 +338,7 @@ export function InterventionHub({
                       isLoading && "opacity-70"
                     )}
                   />
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {option.rationale}
-                  </p>
+                  
                 </div>
               );
             })}

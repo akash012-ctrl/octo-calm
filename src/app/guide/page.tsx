@@ -87,23 +87,34 @@ export default function GuidePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 py-8">
-      <header className="space-y-3">
-        <p className="text-sm font-semibold uppercase tracking-wider text-primary">
-          User guide
-        </p>
-        <h1 className="text-4xl font-semibold tracking-tight">
-          Everything you need to navigate Octo-Calm with confidence
-        </h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Bookmark this page for quick references, safety policies, and
-          escalation resources. Each section links to the relevant workspace so
-          you can take action immediately.
-        </p>
-      </header>
+      <Card className="rounded-3xl border bg-card/90 shadow-primary-glow">
+        <CardHeader className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold uppercase tracking-widest text-primary">
+              User guide
+            </p>
+            <CardTitle className="text-4xl font-semibold tracking-tight">
+              Navigate Octo-Calm with confidence
+            </CardTitle>
+            <CardDescription className="max-w-3xl text-muted-foreground">
+              Keep this page handy for quick-start steps, escalation policies,
+              and shortcuts into each workspace when you need them.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground sm:grid-cols-2">
+          <span>✔ Bookmark for safety resources and policy refreshers.</span>
+          <span>✔ Jump to any workspace in two taps from the cards below.</span>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {SECTIONS.map((section) => (
-          <Card key={section.id} id={section.id} className="flex flex-col">
+          <Card
+            key={section.id}
+            id={section.id}
+            className="flex flex-col shadow-primary-glow"
+          >
             <CardHeader>
               <div className="flex items-center gap-2">
                 <section.icon className="h-5 w-5 text-primary" />
@@ -128,7 +139,7 @@ export default function GuidePage() {
         ))}
       </div>
 
-      <Card className="border-rose-300 bg-rose-100/60">
+      <Card className="border-rose-300 bg-rose-100/60 shadow-primary-glow">
         <CardHeader className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-rose-800">
             <AlertTriangle className="h-5 w-5" />
@@ -172,7 +183,7 @@ export default function GuidePage() {
         </CardContent>
       </Card>
 
-      <Card className="bg-muted/60">
+      <Card className="bg-muted/60 shadow-primary-glow">
         <CardHeader>
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />

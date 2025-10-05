@@ -69,25 +69,33 @@ export default function InterventionsWorkspacePage() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl space-y-2">
-          <p className="text-sm text-muted-foreground">Guided interventions</p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Practice science-backed resets when you need them most
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Choose a companion-led exercise or follow the recommended sequence
-            curated from your latest mood signals and real-time session
-            insights. Feedback loops improve guidance every time you complete
-            one.
-          </p>
-        </div>
-        <Button asChild variant="outline" className="w-full max-w-xs lg:w-auto">
-          <Link href="/dashboard/mood">Review recent moods</Link>
-        </Button>
-      </header>
+      <Card className="rounded-3xl border bg-card/90 shadow-primary-glow">
+        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-primary">
+              <BrainCircuit className="h-4 w-4" /> Guided interventions
+            </div>
+            <CardTitle className="text-3xl font-semibold tracking-tight">
+              Practice science-backed resets when you need them most
+            </CardTitle>
+            <ul className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-1">
+              <li className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                Follow recommendations powered by your latest moods. Rate your
+                calmness for personalisation.
+              </li>
+            </ul>
+          </div>
+          <Button
+            asChild
+            variant="outline"
+            className="w-full max-w-xs lg:w-auto"
+          >
+            <Link href="/dashboard/mood">Review recent moods</Link>
+          </Button>
+        </CardHeader>
+      </Card>
 
-      <Card className="border-primary/20 bg-primary/5">
+      <Card className="border-primary/20 bg-primary/5 shadow-primary-glow">
         <CardHeader className="flex flex-row items-center gap-3">
           <Sparkles className="h-5 w-5 text-primary" />
           <div>
@@ -95,18 +103,17 @@ export default function InterventionsWorkspacePage() {
               Companion recommendations adapt to you
             </CardTitle>
             <CardDescription>
-              Complete an exercise to unlock personalization—your calmness
-              rating tunes future suggestions and realtime guardrails.
+              Complete an exercise to unlock personalization (coming soon)
             </CardDescription>
           </div>
         </CardHeader>
       </Card>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <InterventionHub recentCheckIns={checkIns} className="min-h-[520px]" />
+        <InterventionHub recentCheckIns={checkIns} />
 
         <div className="space-y-4">
-          <Card>
+          <Card className="shadow-primary-glow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ListChecks className="h-5 w-5" /> How the flow works
@@ -133,7 +140,7 @@ export default function InterventionsWorkspacePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-primary-glow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BrainCircuit className="h-5 w-5" /> Why these work
@@ -160,7 +167,7 @@ export default function InterventionsWorkspacePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-primary-glow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CircleDot className="h-5 w-5" /> Baseline mood

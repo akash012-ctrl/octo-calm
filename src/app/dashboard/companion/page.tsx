@@ -63,24 +63,40 @@ export default function CompanionWorkspacePage() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-sm text-muted-foreground">Realtime companion</p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Start a guided conversation with instant guardrails
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            The companion mirrors supportive coaching—ground yourself, practice
-            exercises, and capture insights while guardrails monitor for
-            escalation. Your microphone data stays local and is never stored.
-          </p>
-        </div>
-        <Button asChild variant="outline" className="w-full max-w-xs lg:w-auto">
-          <Link href="/guide#companion">Review safety guidelines</Link>
-        </Button>
-      </header>
+      <Card className="rounded-3xl border bg-card/90 shadow-primary-glow">
+        <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-primary">
+              <Mic className="h-4 w-4" /> Realtime companion
+            </div>
+            <CardTitle className="text-3xl font-semibold tracking-tight">
+              Start a guided conversation with instant guardrails
+            </CardTitle>
+            <ul className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
+              <li className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                Ground yourself with a quick breathing check before going live.
+              </li>
+              <li className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                Guardrails watch for crisis cues while captions keep you in
+                sync.
+              </li>
+              <li className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 sm:col-span-2">
+                Audio stays local—end the session anytime to clear data
+                instantly.
+              </li>
+            </ul>
+          </div>
+          <Button
+            asChild
+            variant="outline"
+            className="w-full max-w-xs lg:w-auto"
+          >
+            <Link href="/guide#companion">Review safety guidelines</Link>
+          </Button>
+        </CardHeader>
+      </Card>
 
-      <Card className="border-amber-200 bg-amber-50/60 text-amber-900">
+      <Card className="border-amber-200 bg-amber-50/60 text-amber-900 shadow-primary-glow">
         <CardHeader className="flex flex-row items-center gap-3">
           <AlertTriangle className="h-5 w-5" />
           <div>
@@ -97,10 +113,10 @@ export default function CompanionWorkspacePage() {
       </Card>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <VoiceCompanion className="min-h-[560px]" />
+        <VoiceCompanion className="min-h-[560px] rounded-3xl border border-primary/20 bg-card/95 shadow-primary-glow" />
 
         <div className="space-y-4">
-          <Card>
+          <Card className="shadow-primary-glow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Headphones className="h-5 w-5" /> Get grounded before you speak
@@ -113,18 +129,18 @@ export default function CompanionWorkspacePage() {
               <ol className="space-y-2">
                 <li>1. Find a quiet spot and take three steady breaths.</li>
                 <li>
-                  2. Decide what you&apos;d like to explore—mood shift, trigger,
-                  or goal.
+                  2. Pick a theme—mood shift, trigger, or coaching goal—to keep
+                  the session focused.
                 </li>
                 <li>
-                  3. Toggle captions if you want a live transcript, and remember
-                  sessions save locally.
+                  3. Toggle captions if you want a live transcript; everything
+                  stays on your device.
                 </li>
               </ol>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-primary-glow">
             <CardHeader>
               <CardTitle>Quick tips</CardTitle>
               <CardDescription>Make the most of each session.</CardDescription>

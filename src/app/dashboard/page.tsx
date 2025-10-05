@@ -6,9 +6,11 @@ import { format, isToday } from "date-fns";
 import {
   ArrowRight,
   CalendarDays,
+  CheckCircle2,
   Compass,
   Headphones,
   Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -66,29 +68,40 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-10">
-      <header className="flex flex-col gap-6 rounded-2xl border bg-background p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <header className="rounded-3xl border bg-card/90 px-6 py-7 shadow-primary-glow sm:flex sm:items-center sm:justify-between">
+        <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             {format(new Date(), "EEEE, MMMM d, yyyy")}
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-            Welcome back, {currentUser.name} 👋
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Welcome back, {currentUser.name}
           </h1>
-          <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-            Pick where you want to focus today: track your mood, start a
-            companion session, or try a guided exercise. Need a refresher?
-            Explore the onboarding tour or quick-start guide below.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-primary">
+              Focus your next move
+            </span>
+            <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
+              <span className="rounded-full bg-primary/20 px-2 py-1 text-primary">
+                Log a mood
+              </span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                Talk things out
+              </span>
+              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                Reset fast
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-0 sm:justify-end">
           <Link href="/onboarding">
             <Button variant="outline" className="w-full sm:w-auto">
-              <Sparkles className="mr-2 h-4 w-4" /> Take the tour
+              <Sparkles className="mr-2 h-4 w-4" /> Tour
             </Button>
           </Link>
           <Link href="/guide">
             <Button variant="secondary" className="w-full sm:w-auto">
-              <Compass className="mr-2 h-4 w-4" /> Open guide
+              <Compass className="mr-2 h-4 w-4" /> Guide
             </Button>
           </Link>
           <Button variant="ghost" onClick={handleSignOut}>
@@ -98,191 +111,183 @@ export default function DashboardPage() {
       </header>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-primary/20 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wide text-primary">
-              Today&apos;s status
-            </CardTitle>
+        <Card className="h-full border border-primary/20 bg-card/95 shadow-primary-glow">
+          <CardHeader className="flex flex-row items-start justify-between pb-2">
+            <div>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Today&apos;s check-in
+              </CardTitle>
+              <p className="mt-2 text-2xl font-semibold">
+                {hasCheckedInToday ? "Logged" : "Pending"}
+              </p>
+            </div>
+            <CheckCircle2 className="h-6 w-6 text-primary" />
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-2xl font-semibold">
-              {hasCheckedInToday ? "Mood logged" : "Check-in pending"}
-            </p>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
               {hasCheckedInToday
-                ? "Great job staying consistent."
-                : "Log a quick check-in to personalize your companion."}
+                ? "Nice streak—keep the rhythm."
+                : "Tap in once today to stay calibrated."}
             </p>
             <Link
               href="/dashboard/mood"
-              className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center font-medium text-primary hover:underline"
             >
-              Go to mood tools <ArrowRight className="ml-1 h-4 w-4" />
+              Open mood workspace <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wide">
-              Last check-in
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {lastCheckIn ? (
-              <>
-                <p className="text-2xl">
-                  {["😢", "😔", "😐", "🙂", "😊"][lastCheckIn.mood - 1]}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(lastCheckIn.timestamp), "MMM d 'at' h:mm a")}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No check-ins recorded yet.
+        <Card className="h-full border bg-card/95 shadow-primary-glow">
+          <CardHeader className="flex flex-row items-start justify-between pb-2">
+            <div>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Last entry
+              </CardTitle>
+              <p className="mt-2 text-2xl font-semibold">
+                {lastCheckIn
+                  ? ["😢", "😔", "😐", "🙂", "😊"][lastCheckIn.mood - 1]
+                  : "––"}
               </p>
-            )}
-            <p className="text-sm text-muted-foreground">
-              {checkIns.length
-                ? `${checkIns.length} entries in the last 30 days.`
-                : "Your history is ready to grow."}
+            </div>
+            <CalendarDays className="h-6 w-6 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              {lastCheckIn
+                ? format(new Date(lastCheckIn.timestamp), "MMM d · h:mma")
+                : "No check-ins yet."}
+            </p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
+              {checkIns.length} in the last 30 days
             </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wide">
-              Mood trend
-            </CardTitle>
+        <Card className="h-full border bg-card/95 shadow-primary-glow">
+          <CardHeader className="flex flex-row items-start justify-between pb-2">
+            <div>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Mood trend
+              </CardTitle>
+              <p className="mt-2 text-2xl font-semibold">
+                {averageMood !== null ? `${averageMood}/5` : "––"}
+              </p>
+            </div>
+            <TrendingUp className="h-6 w-6 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-2xl font-semibold">
-              {averageMood !== null ? `${averageMood}/5` : "––"}
-            </p>
-            <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
               {averageMood !== null
-                ? "Average score across your recent check-ins."
-                : "Start logging to see trend insights."}
+                ? "Steady over your selected range."
+                : "Log a few entries to unlock insights."}
             </p>
             <Link
               href="/dashboard/mood#trends"
-              className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center font-medium text-primary hover:underline"
             >
-              View detailed chart <ArrowRight className="ml-1 h-4 w-4" />
+              View chart <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wide">
-              Upcoming focus
-            </CardTitle>
+        <Card className="h-full border bg-card/95 shadow-primary-glow">
+          <CardHeader className="flex flex-row items-start justify-between pb-2">
+            <div>
+              <CardTitle className="text-sm font-semibold text-muted-foreground">
+                Quick win
+              </CardTitle>
+              <p className="mt-2 text-2xl font-semibold">Replay tour</p>
+            </div>
+            <Sparkles className="h-6 w-6 text-primary" />
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-2xl font-semibold">Replay onboarding</p>
-            <p className="text-sm text-muted-foreground">
-              Spend two minutes reviewing the platform tips to get the most out
-              of the companion.
-            </p>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>Refresh the walkthrough to see what&apos;s new.</p>
             <Link
               href="/onboarding"
-              className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center font-medium text-primary hover:underline"
             >
-              Start walkthrough <ArrowRight className="ml-1 h-4 w-4" />
+              Start tour <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </CardContent>
         </Card>
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>1. Track your mood</CardTitle>
-            <CardDescription>
-              Log how you&apos;re feeling, capture triggers, and review past
-              entries.
+        <Card className="lg:col-span-1 border bg-card/95 shadow-primary-glow">
+          <CardHeader className="space-y-1">
+            <CardTitle>Log feelings</CardTitle>
+            <CardDescription className="text-sm">
+              Capture mood, notes, and tags in under a minute.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p className="inline-flex items-center font-medium text-foreground">
-              <CalendarDays className="mr-2 h-4 w-4" /> Daily reflections
-            </p>
-            <p>
-              Start with a quick check-in to personalize your recommendations.
+            <p className="inline-flex items-center gap-2 font-medium text-foreground">
+              <CalendarDays className="h-4 w-4 text-primary" /> Daily rhythm
             </p>
             <Link href="/dashboard/mood">
-              <Button variant="outline" className="mt-3">
-                Open mood workspace
+              <Button variant="outline" className="mt-1">
+                Open mood tools
               </Button>
             </Link>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>2. Talk with the companion</CardTitle>
-            <CardDescription>
-              Start a live voice session for coached breathing, grounding, and
-              real-time support.
+        <Card className="lg:col-span-1 border bg-card/95 shadow-primary-glow">
+          <CardHeader className="space-y-1">
+            <CardTitle>Go realtime</CardTitle>
+            <CardDescription className="text-sm">
+              Voice support with live guardrails and captions.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p className="inline-flex items-center font-medium text-foreground">
-              <Headphones className="mr-2 h-4 w-4" /> Realtime audio guidance
-            </p>
-            <p>
-              Connect your microphone and explore guardrails, transcripts, and
-              session history.
+            <p className="inline-flex items-center gap-2 font-medium text-foreground">
+              <Headphones className="h-4 w-4 text-primary" /> Guided
+              conversation
             </p>
             <Link href="/dashboard/companion">
-              <Button variant="outline" className="mt-3">
-                Launch companion session
+              <Button variant="outline" className="mt-1">
+                Launch companion
               </Button>
             </Link>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>3. Practice guided exercises</CardTitle>
-            <CardDescription>
-              Recharge with short interventions tailored to your current mood.
+        <Card className="lg:col-span-1 border bg-card/95 shadow-primary-glow">
+          <CardHeader className="space-y-1">
+            <CardTitle>Reset fast</CardTitle>
+            <CardDescription className="text-sm">
+              Try grounding and breathing exercises curated for you.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p className="inline-flex items-center font-medium text-foreground">
-              <Sparkles className="mr-2 h-4 w-4" /> Proven calming routines
-            </p>
-            <p>
-              Choose from grounding and breathing practices with voice and
-              caption support.
+            <p className="inline-flex items-center gap-2 font-medium text-foreground">
+              <Sparkles className="h-4 w-4 text-primary" /> Micro interventions
             </p>
             <Link href="/dashboard/interventions">
-              <Button variant="outline" className="mt-3">
-                Explore interventions
+              <Button variant="outline" className="mt-1">
+                Explore routines
               </Button>
             </Link>
           </CardContent>
         </Card>
       </section>
 
-      <section className="rounded-2xl border bg-background p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">Need a quick orientation?</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Visit the{" "}
-          <Link
-            href="/guide"
-            className="font-medium text-primary hover:underline"
-          >
-            User Guide
-          </Link>{" "}
-          for step-by-step instructions, session tips, and safety resources. You
-          can revisit the onboarding walkthrough any time to refresh the core
-          concepts.
-        </p>
+      <section className="rounded-3xl border bg-card/90 px-6 py-6 shadow-primary-glow">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Need a quick refresher?</h2>
+            <p className="text-sm text-muted-foreground">
+              The guide bundles walkthroughs, safety notes, and escalation steps
+              in one place.
+            </p>
+          </div>
+          <Link href="/guide">
+            <Button variant="secondary" className="w-full sm:w-auto">
+              Open guide
+            </Button>
+          </Link>
+        </div>
       </section>
 
       {isLoading && (

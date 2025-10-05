@@ -243,23 +243,20 @@ export function GroundingExercise({
   return (
     <Card
       className={cn(
-        "h-full border-primary/20 transition-colors",
+        "h-full border-primary/20 shadow-primary-glow transition-colors",
         theme?.container,
         className
       )}
     >
       <CardHeader className={cn("border-b", theme?.header)}>
         <CardTitle className="text-xl font-semibold">Grounding 60s</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Gently reconnect with the present moment using the 5-4-3-2-1 technique
-          guided by your companion.
-        </p>
+        <p className="text-sm text-muted-foreground">Ease yourself</p>
       </CardHeader>
       <CardContent className="space-y-6 p-6">
         <div className="grid gap-4 text-xs sm:grid-cols-2">
           <div className="space-y-2">
             <p className="font-semibold uppercase tracking-wide text-muted-foreground">
-              Backdrop tone
+              Backdrop
             </p>
             <div className="flex flex-wrap gap-2">
               {(
@@ -312,8 +309,8 @@ export function GroundingExercise({
             </div>
             {pace !== "manual" && (
               <p className="text-xs text-muted-foreground">
-                Auto-advances every {Math.round(PACE_INTERVALS[pace] / 1000)}{" "}
-                seconds if you pause.
+                Auto-advance every {Math.round(PACE_INTERVALS[pace] / 1000)}s
+                when you pause.
               </p>
             )}
           </div>
@@ -340,9 +337,8 @@ export function GroundingExercise({
                 {currentStep.instruction}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Share {currentStep.count} observations using your voice or the
-                text box. Your companion mirrors them back to reinforce
-                grounding.
+                Share {currentStep.count} quick observations using voice or
+                text—your companion mirrors them back.
               </p>
             </div>
 
@@ -352,7 +348,7 @@ export function GroundingExercise({
                 className="flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-3 text-left transition hover:border-primary hover:bg-primary/10"
                 onClick={handleCapture}
               >
-                <Mic className="h-4 w-4" /> Tap to dictate your observations
+                <Mic className="h-4 w-4" /> Dictate observations
               </button>
               <button
                 type="button"
@@ -369,17 +365,17 @@ export function GroundingExercise({
           <div className="space-y-4">
             <div className="rounded-lg border bg-emerald-500/10 p-4">
               <p className="text-sm font-semibold text-emerald-700">
-                Great work staying present.
+                Nice work staying present.
               </p>
               <p className="text-xs text-emerald-900">
-                Take a calming breath and notice the shift in your body. You can
-                share a reflection or begin a new intervention.
+                Take one easy breath, note the shift, and add a reflection if
+                you like.
               </p>
             </div>
             {reflections.length > 0 && (
               <div className="space-y-2 text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">
-                  Your captured observations
+                  Saved observations
                 </p>
                 <ul className="space-y-1">
                   {reflections.map((entry, index) => (
@@ -427,7 +423,7 @@ export function GroundingExercise({
             onClick={handleAdvance}
             className="uppercase tracking-wide"
           >
-            {isFinished ? "Review" : "Next sense"}
+            {isFinished ? "Review" : "Next"}
           </Button>
         </div>
       </CardFooter>

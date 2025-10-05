@@ -49,19 +49,19 @@ const AMBIENT_OPTIONS: {
   {
     value: "off",
     label: "Silence",
-    description: "Follow companion voice only",
+    description: "Companion voice only",
     icon: <VolumeX className="h-4 w-4" />,
   },
   {
     value: "rain",
     label: "Rainfall",
-    description: "Soft rain with gentle shimmer",
+    description: "Soft rain loop",
     icon: <CloudRain className="h-4 w-4" />,
   },
   {
     value: "waves",
     label: "Ocean",
-    description: "Rolling tide with slow swells",
+    description: "Rolling tide swells",
     icon: <WavesIcon className="h-4 w-4" />,
   },
 ];
@@ -366,22 +366,22 @@ export function BreathingExercise({
   }, [currentPhase]);
 
   return (
-    <Card className={cn("h-full border-primary/20", className)}>
+    <Card
+      className={cn("h-full border-primary/20 shadow-primary-glow", className)}
+    >
       <CardHeader className="border-b bg-gradient-to-r from-sky-100/60 via-primary/5 to-transparent">
         <CardTitle className="text-xl font-semibold">
           Box Breathing 90s
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Follow the 4-4-4-4 rhythm with synchronized audio cues. Pair it with a
-          visual guide and optional ambient sound for deeper calm.
+          Stay with the four-count loop using synced audio, visuals, and cues.
         </p>
       </CardHeader>
       <CardContent className="space-y-6 p-6">
         <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
           <p>
-            This routine repeats for {cycles} cycles (~
-            {Math.round(totalDuration / 60)} min). Adjust your posture, relax
-            your shoulders, and let your companion keep time.
+            Runs {cycles} cycles (~{Math.round(totalDuration / 60)} min). Sit
+            tall, soften shoulders, and let the timer lead.
           </p>
         </div>
 
@@ -462,20 +462,13 @@ export function BreathingExercise({
             onClick={() => setShowTips((prev) => !prev)}
           >
             <AlertCircle className="h-3.5 w-3.5" />{" "}
-            {showTips ? "Hide pacing tips" : "Show pacing tips"}
+            {showTips ? "Hide quick tips" : "Show quick tips"}
           </button>
           {showTips && (
             <ul className="space-y-2">
-              <li>
-                • Breathe through the nose during inhales and exhales when
-                comfortable.
-              </li>
-              <li>
-                • Keep shoulders relaxed; focus movement in the diaphragm.
-              </li>
-              <li>
-                • If dizziness occurs, pause and return to natural breathing.
-              </li>
+              <li>• Inhale and exhale through the nose when it feels good.</li>
+              <li>• Keep shoulders down; let your belly lead the movement.</li>
+              <li>• Pause the routine if lightheaded—natural breath wins.</li>
             </ul>
           )}
         </div>
@@ -492,7 +485,7 @@ export function BreathingExercise({
           </span>
         )}
         <Button variant="outline" size="sm" onClick={() => setShowTips(true)}>
-          Need guidance?
+          Quick tips
         </Button>
       </CardFooter>
     </Card>

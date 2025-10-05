@@ -92,20 +92,21 @@ export default function LoginPage() {
 
   return (
     <div className="app-shell flex min-h-screen items-center justify-center p-4">
-      <Card className="octo-card w-full max-w-md">
+      <Card className="octo-card w-full max-w-md shadow-primary-glow">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <div className="brand-avatar w-12 h-12 rounded-full" />
           </div>
           <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
-          <CardDescription className="text-center">
-            Sign in to your Octo-Calm account
+          <CardDescription className="mx-auto max-w-sm text-center text-muted-foreground">
+            Sign in to pick up your companion sessions, mood logs, and guided
+            routines.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <CardContent className="space-y-4">
             {error && (
-              <div className="p-3 text-sm text-[color:var(--octo-error)] bg-[color:var(--octo-error)]/10 rounded-md">
+              <div className="rounded-lg border border-[color:var(--octo-error)]/30 bg-[color:var(--octo-error)]/10 p-3 text-sm text-[color:var(--octo-error)]">
                 {error}
               </div>
             )}
@@ -138,7 +139,7 @@ export default function LoginPage() {
               )}
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4 mt-4">
+          <CardFooter className="mt-4 flex flex-col space-y-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>

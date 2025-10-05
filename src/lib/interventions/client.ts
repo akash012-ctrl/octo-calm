@@ -13,6 +13,7 @@ export interface StartInterventionResponse {
     interventionSessionId: string;
     startedAt: string;
     interventionType: string;
+    storedInterventionType?: string;
     realtimeSessionId: string | null;
     agentInstructions?: string;
 }
@@ -80,6 +81,7 @@ export async function startInterventionSession(
         interventionSessionId: data.interventionSessionId,
         startedAt: data.startedAt,
         interventionType: data.interventionType,
+        storedInterventionType: data.storedInterventionType ?? data.interventionType,
         realtimeSessionId: data.realtimeSessionId ?? null,
         agentInstructions: data.agentInstructions,
     };
