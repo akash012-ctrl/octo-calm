@@ -4,7 +4,7 @@
  * These utilities ensure that sensitive data is NEVER sent to the client.
  * Always sanitize server-side data before returning it to Client Components.
  * 
- * SECURITY RULES:
+export function sanitizeSession(session: Models.Session) {
  * ==============
  * 1. Remove internal IDs and metadata
  * 2. Strip Appwrite system fields ($id, $permissions, etc.)
@@ -204,15 +204,15 @@ export type ClientSafeData<T> = Omit<T,
  * 
  * ```typescript
  * // ❌ BAD - Exposes sensitive data
- * export async function getUser(userId: string) {
- *   const user = await databases.getDocument(DATABASE_ID, COLLECTION_IDS.USERS, userId);
- *   return user; // Contains $permissions, etc.
+ * export async function getSession(historyId: string) {
+ *   const session = await databases.getDocument(DATABASE_ID, COLLECTION_IDS.SESSION_HISTORY, historyId);
+ *   return session; // Contains $permissions, etc.
  * }
  * 
  * // ✅ GOOD - Sanitized data
- * export async function getUser(userId: string) {
- *   const user = await databases.getDocument(DATABASE_ID, COLLECTION_IDS.USERS, userId);
- *   return sanitizeDocument(user);
+ * export async function getSession(historyId: string) {
+ *   const session = await databases.getDocument(DATABASE_ID, COLLECTION_IDS.SESSION_HISTORY, historyId);
+ *   return sanitizeDocument(session);
  * }
  * ```
  */
