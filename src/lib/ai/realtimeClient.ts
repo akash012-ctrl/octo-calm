@@ -28,6 +28,7 @@ export interface RealtimeClientSecretConfig {
 
 export interface RealtimeClientSecretResult {
     clientSecret: string | null;
+    sessionId: string | null;
     configuration: RealtimeClientSecretConfig;
 }
 
@@ -72,20 +73,6 @@ function resolveModalities(transport: TransportKind | undefined, requested?: ("t
     return ["audio", "text"];
 }
 
-function resolveSpeechSpeed(personality?: string): number {
-    switch (personality) {
-        case "calm":
-            return 0.92;
-        case "professional":
-            return 1;
-        case "encouraging":
-        case "friendly":
-            return 1.04;
-        default:
-            return 1;
-    }
-}
-
 export async function createRealtimeClientSecret(config: RealtimeClientSecretConfig = {}): Promise<RealtimeClientSecretResult> {
     const apiKey = process.env.OPENAI_API_KEY;
     const model = config.model ?? DEFAULT_REALTIME_MODEL;
@@ -96,6 +83,7 @@ export async function createRealtimeClientSecret(config: RealtimeClientSecretCon
     if (!apiKey) {
         return {
             clientSecret: null,
+            sessionId: null,
             configuration: {
                 ...config,
                 model,
@@ -111,6 +99,7 @@ export async function createRealtimeClientSecret(config: RealtimeClientSecretCon
             method: "POST",
             headers: {
                 Authorization: `Bearer ${apiKey}`,
+                "OpenAI-Beta": "realtime=v1",
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -126,6 +115,7 @@ export async function createRealtimeClientSecret(config: RealtimeClientSecretCon
             console.warn("Failed to create realtime session secret:", message);
             return {
                 clientSecret: null,
+                sessionId: null,
                 configuration: {
                     ...config,
                     model,
@@ -138,10 +128,12 @@ export async function createRealtimeClientSecret(config: RealtimeClientSecretCon
 
         const payload = (await response.json()) as {
             client_secret?: { value: string };
+            id?: string;
         };
 
         return {
             clientSecret: payload.client_secret?.value ?? null,
+            sessionId: payload.id ?? null,
             configuration: {
                 ...config,
                 model,
@@ -154,6 +146,7 @@ export async function createRealtimeClientSecret(config: RealtimeClientSecretCon
         console.error("Realtime secret creation failed:", error);
         return {
             clientSecret: null,
+            sessionId: null,
             configuration: {
                 ...config,
                 model,
@@ -193,11 +186,7 @@ export interface BuildSessionConfigurationOptions {
     voice: string;
     transport: TransportKind;
     model?: string;
-    preferences?: { aiPersonality?: string } | null;
     personaVersion?: string | null;
-    guardrailDirectives?: string[];
-    preferenceSummary?: string[];
-    moodDigest?: string;
     locale?: string;
     toolDefinitions?: RealtimeSessionConfig["tools"];
     modalities?: ("text" | "audio")[];
@@ -220,13 +209,13 @@ export function buildRealtimeSessionConfig(options: BuildSessionConfigurationOpt
                     type: "server_vad",
                     createResponse: true,
                     interruptResponse: true,
-                    silenceDurationMs: options.preferences?.aiPersonality === "calm" ? 900 : 600,
+                    silenceDurationMs: 800,
                 },
                 noiseReduction: { type: "near_field" as const },
             },
             output: {
                 voice: options.voice,
-                speed: resolveSpeechSpeed(options.preferences?.aiPersonality),
+                speed: 0.96,
             },
         };
 
@@ -240,9 +229,6 @@ export function buildRealtimeSessionConfig(options: BuildSessionConfigurationOpt
         voice: options.voice,
         providerData: {
             personaVersion: options.personaVersion,
-            guardrailDirectives: options.guardrailDirectives,
-            preferenceSummary: options.preferenceSummary,
-            moodDigest: options.moodDigest,
             transport: options.transport,
         },
     } satisfies Partial<RealtimeSessionConfig>;

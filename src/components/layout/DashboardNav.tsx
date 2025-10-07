@@ -8,10 +8,8 @@ import { cn } from "@/lib/utils";
 
 const NAV_LINKS: Array<{ href: string; label: string }> = [
   { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/mood", label: "Mood Check-ins" },
-  { href: "/dashboard/companion", label: "Realtime Companion" },
-  { href: "/dashboard/interventions", label: "Guided Interventions" },
-  { href: "/guide", label: "User Guide" },
+  { href: "/dashboard/companion", label: "Voice Companion" },
+  { href: "/guide", label: "Guide" },
 ];
 
 export function DashboardNav() {

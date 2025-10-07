@@ -10,9 +10,7 @@ export type SessionHistoryDocument = Models.Document & {
     userId: string;
     sessionId?: string;
     transcripts?: unknown[] | string;
-    recommendedInterventions?: unknown[] | string;
     guardrails?: unknown | string;
-    moodInferenceTimeline?: unknown[] | string;
     durationMs?: number | null;
     startedAt?: string | null;
     endedAt?: string | null;
@@ -67,33 +65,6 @@ function parseMetadata(raw: unknown): Record<string, unknown> {
     }
 
     return {};
-}
-
-function extractMoodTimeline(
-    doc: SessionHistoryDocument,
-    metadata: Record<string, unknown>
-): unknown[] {
-    const fromMetadata = metadata.moodInferenceTimeline;
-    if (Array.isArray(fromMetadata)) {
-        return fromMetadata;
-    }
-
-    if (typeof doc.moodInferenceTimeline === "string") {
-        try {
-            const parsed = JSON.parse(doc.moodInferenceTimeline);
-            if (Array.isArray(parsed)) {
-                return parsed;
-            }
-        } catch (error) {
-            console.warn("Failed to parse mood inference timeline", error);
-        }
-    }
-
-    if (Array.isArray(doc.moodInferenceTimeline)) {
-        return doc.moodInferenceTimeline;
-    }
-
-    return [];
 }
 
 export function normalizeTranscripts(input: unknown): SessionHistoryTranscriptItem[] {
@@ -164,10 +135,13 @@ export function normalizeGuardrails(raw: unknown): SessionGuardrailSnapshot | nu
 export function mapSessionHistoryDocument(doc: SessionHistoryDocument): SessionHistoryRecord {
     const transcripts = normalizeTranscripts(doc.transcripts);
     const metadataRaw = parseMetadata(doc.metadata);
-    const moodTimeline = extractMoodTimeline(doc, metadataRaw);
-
-    if ("moodInferenceTimeline" in metadataRaw) {
-        delete metadataRaw.moodInferenceTimeline;
+    const summary = typeof metadataRaw.summary === "string" ? metadataRaw.summary : null;
+    if (summary && "summary" in metadataRaw) {
+        delete metadataRaw.summary;
+    }
+    const guardrailSource = metadataRaw.guardrails ?? doc.guardrails ?? null;
+    if (guardrailSource && typeof metadataRaw.guardrails !== "undefined") {
+        delete metadataRaw.guardrails;
     }
 
     return {
@@ -175,9 +149,8 @@ export function mapSessionHistoryDocument(doc: SessionHistoryDocument): SessionH
         sessionId: doc.sessionId ?? null,
         transcripts,
         totalTranscriptCount: transcripts.length,
-        recommendedInterventions: parseJsonArray(doc.recommendedInterventions),
-        guardrails: normalizeGuardrails(doc.guardrails),
-        moodInferenceTimeline: moodTimeline,
+        summary,
+        guardrails: normalizeGuardrails(guardrailSource),
         durationMs: typeof doc.durationMs === "number" ? doc.durationMs : null,
         startedAt: doc.startedAt ?? null,
         endedAt: doc.endedAt ?? null,

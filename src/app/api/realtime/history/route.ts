@@ -8,9 +8,8 @@ import type { SessionHistoryRecord } from "@/types/realtime";
 interface SessionHistoryBody {
     sessionId?: string;
     transcripts?: unknown[];
-    recommendedInterventions?: unknown[];
     guardrails?: unknown;
-    moodInferenceTimeline?: unknown[];
+    summary?: string | null;
     durationMs?: number;
     startedAt?: string;
     endedAt?: string | null;
@@ -59,13 +58,12 @@ function stringifyJson(value: unknown): string {
 function buildHistoryDocumentPayload(userId: string, body: SessionHistoryBody) {
     const metadataPayload = {
         ...(body.metadata ?? {}),
-        moodInferenceTimeline: body.moodInferenceTimeline ?? [],
+        summary: body.summary ?? null,
     } satisfies Record<string, unknown>;
 
     const document: Record<string, unknown> = {
         userId,
         transcripts: stringifyJson(body.transcripts ?? []),
-        recommendedInterventions: stringifyJson(body.recommendedInterventions ?? []),
         guardrails: stringifyJson(body.guardrails ?? null),
         metadata: stringifyJson(metadataPayload),
         durationMs: body.durationMs ?? null,
@@ -105,23 +103,12 @@ type SessionHistoryDocWithUser = SessionHistoryDocument & { userId: string };
 
 function sanitizeHistoryDocument(doc: SessionHistoryDocWithUser): SessionHistoryRecord {
     const transcripts = parseJsonField<unknown[]>(doc.transcripts, []);
-    const recommended = parseJsonField<unknown[]>(doc.recommendedInterventions, []);
     const guardrails = parseJsonField<unknown>(doc.guardrails, null);
     const metadata = parseJsonField<Record<string, unknown>>(doc.metadata, {});
-    const timelineFromMetadata = Array.isArray(metadata.moodInferenceTimeline)
-        ? (metadata.moodInferenceTimeline as unknown[])
-        : parseJsonField<unknown[]>(doc.moodInferenceTimeline, []);
-
-    if ("moodInferenceTimeline" in metadata) {
-        delete metadata.moodInferenceTimeline;
-    }
-
     return mapSessionHistoryDocument({
         ...doc,
         transcripts,
-        recommendedInterventions: recommended,
         guardrails,
-        moodInferenceTimeline: timelineFromMetadata,
         metadata,
     });
 }

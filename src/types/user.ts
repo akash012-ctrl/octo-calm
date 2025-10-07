@@ -19,27 +19,10 @@ export interface UserPreferences extends Models.Document {
     theme: 'light' | 'dark' | 'system';
     notificationsEnabled: boolean;
     emailNotifications: boolean;
-    moodReminderTime?: string; // Time in HH:mm format
-    moodReminderFrequency: 'daily' | 'twice-daily' | 'weekly' | 'disabled';
-    preferredInterventionTypes: InterventionType[];
-    aiPersonality: 'calm' | 'encouraging' | 'professional' | 'friendly';
     dataRetentionDays: number; // How long to keep mood/chat history
     createdAt: string;
     updatedAt: string;
 }
-
-/**
- * Intervention types available in the app
- */
-export type InterventionType =
-    | 'breathing'
-    | 'meditation'
-    | 'journaling'
-    | 'physical-activity'
-    | 'grounding'
-    | 'cognitive-reframing'
-    | 'distraction'
-    | 'social-support';
 
 /**
  * User's current state/session

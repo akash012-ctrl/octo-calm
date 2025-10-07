@@ -3,13 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  BookOpenCheck,
-  Headphones,
-  Mic,
-  Shield,
-} from "lucide-react";
+import { Headphones, Mic, NotebookPen, Shield } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -22,25 +16,16 @@ import AuthLoading from "@/components/shared/AuthLoading";
 import { useAuth } from "@/lib/context/AuthContext";
 import { VoiceCompanion } from "@/components/features/chat/VoiceCompanion";
 
-const QUICK_TIPS = [
-  {
-    icon: Mic,
-    title: "Check your mic",
-    description:
-      "Use headphones whenever possible and confirm your browser mic permissions are enabled before starting.",
-  },
-  {
-    icon: Shield,
-    title: "Guardrails always on",
-    description:
-      "Crisis detection, escalation cues, and policy filters run live. You can see status from the alert badges.",
-  },
-  {
-    icon: BookOpenCheck,
-    title: "Log takeaways",
-    description:
-      "Use the session history snapshot to jot down breakthroughs and link them to your next mood check-in.",
-  },
+const PREP_STEPS = [
+  "Pop on headphones and confirm the right microphone is selected.",
+  "Take two slow breaths before you press start.",
+  "Name one focus area so the companion can stay on track.",
+];
+
+const FOLLOW_UPS = [
+  "Ask the companion for a recap before you disconnect.",
+  "Tap Generate summary to capture the clinical note.",
+  "Download the JSON if you need to share it securely.",
 ];
 
 export default function CompanionWorkspacePage() {
@@ -67,22 +52,19 @@ export default function CompanionWorkspacePage() {
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl space-y-3">
             <div className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-primary">
-              <Mic className="h-4 w-4" /> Realtime companion
+              <Headphones className="h-4 w-4" /> Voice companion
             </div>
             <CardTitle className="text-3xl font-semibold tracking-tight">
-              Start a guided conversation with instant guardrails
+              Speak with a steady psychiatrist in real time
             </CardTitle>
             <ul className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
               <li className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                Ground yourself with a quick breathing check before going live.
+                The companion listens for emotion, mirrors back themes, and
+                keeps safety top of mind.
               </li>
               <li className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-                Guardrails watch for crisis cues while captions keep you in
-                sync.
-              </li>
-              <li className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 sm:col-span-2">
-                Audio stays local—end the session anytime to clear data
-                instantly.
+                When you wrap, generate a summary to capture key points and next
+                steps instantly.
               </li>
             </ul>
           </div>
@@ -91,22 +73,19 @@ export default function CompanionWorkspacePage() {
             variant="outline"
             className="w-full max-w-xs lg:w-auto"
           >
-            <Link href="/guide#companion">Review safety guidelines</Link>
+            <Link href="/guide#companion">Review safety notes</Link>
           </Button>
         </CardHeader>
       </Card>
 
       <Card className="border-amber-200 bg-amber-50/60 text-amber-900 shadow-primary-glow">
         <CardHeader className="flex flex-row items-center gap-3">
-          <AlertTriangle className="h-5 w-5" />
+          <Shield className="h-5 w-5" />
           <div>
-            <CardTitle className="text-base">
-              Use headphones for the best experience
-            </CardTitle>
+            <CardTitle className="text-base">Keep privacy in focus</CardTitle>
             <CardDescription className="text-amber-900/80">
-              Enable push-to-talk if you&apos;re in a shared space. You can
-              pause or end the session anytime—your guardrails will immediately
-              clear when you disconnect.
+              Conversations stay in your session until you save a summary. You
+              can clear everything at any time.
             </CardDescription>
           </div>
         </CardHeader>
@@ -119,45 +98,36 @@ export default function CompanionWorkspacePage() {
           <Card className="shadow-primary-glow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Headphones className="h-5 w-5" /> Get grounded before you speak
+                <Mic className="h-5 w-5" /> Before you connect
               </CardTitle>
               <CardDescription>
-                A short prep ritual helps the model adapt to your tone and pace.
+                Give the model a clean signal and a clear goal.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
               <ol className="space-y-2">
-                <li>1. Find a quiet spot and take three steady breaths.</li>
-                <li>
-                  2. Pick a theme—mood shift, trigger, or coaching goal—to keep
-                  the session focused.
-                </li>
-                <li>
-                  3. Toggle captions if you want a live transcript; everything
-                  stays on your device.
-                </li>
+                {PREP_STEPS.map((step, index) => (
+                  <li key={step}>{`${index + 1}. ${step}`}</li>
+                ))}
               </ol>
             </CardContent>
           </Card>
 
           <Card className="shadow-primary-glow">
             <CardHeader>
-              <CardTitle>Quick tips</CardTitle>
-              <CardDescription>Make the most of each session.</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <NotebookPen className="h-5 w-5" /> After the conversation
+              </CardTitle>
+              <CardDescription>
+                Close the loop while everything is fresh.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {QUICK_TIPS.map((tip) => (
-                <div
-                  key={tip.title}
-                  className="flex gap-3 text-sm text-muted-foreground"
-                >
-                  <tip.icon className="mt-0.5 h-4 w-4 text-foreground" />
-                  <div>
-                    <p className="font-medium text-foreground">{tip.title}</p>
-                    <p>{tip.description}</p>
-                  </div>
-                </div>
-              ))}
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <ul className="space-y-2">
+                {FOLLOW_UPS.map((item) => (
+                  <li key={item}>• {item}</li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         </div>

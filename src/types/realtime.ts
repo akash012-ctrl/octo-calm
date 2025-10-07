@@ -1,6 +1,3 @@
-import type { InterventionRecommendation } from "./intervention";
-import type { MoodInferenceResult } from "@/lib/ai/mood-inference";
-
 export type RealtimeTransportType = "webrtc" | "websocket";
 
 export interface SessionGuardrailSnapshot {
@@ -23,10 +20,9 @@ export interface SessionHistoryRecord {
     historyId: string;
     sessionId: string | null;
     transcripts: SessionHistoryTranscriptItem[];
+    summary: string | null;
     totalTranscriptCount?: number;
-    recommendedInterventions: InterventionRecommendation[] | unknown[];
     guardrails: SessionGuardrailSnapshot | null;
-    moodInferenceTimeline: MoodInferenceResult[] | unknown[];
     durationMs: number | null;
     startedAt: string | null;
     endedAt: string | null;

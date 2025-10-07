@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/appwrite/api-auth";
 
 interface RelayPayload {
-    sessionId: string;
+    sessionId?: string;
+    relaySessionId?: string;
     event: unknown;
 }
 
@@ -12,18 +13,24 @@ export async function POST(request: NextRequest) {
 
         const payload = (await request.json()) as RelayPayload;
 
-        if (!payload?.sessionId || !payload.event) {
-            return NextResponse.json({ error: "sessionId and event are required" }, { status: 400 });
+        if (!payload?.event) {
+            return NextResponse.json({ error: "event is required" }, { status: 400 });
         }
 
-        const result = await attemptRelayToOpenAI(payload);
+        const relaySessionId = payload.relaySessionId ?? payload.sessionId;
+        if (!relaySessionId) {
+            return NextResponse.json({ error: "relaySessionId is required" }, { status: 400 });
+        }
+
+        const result = await attemptRelayToOpenAI(relaySessionId, payload.event);
 
         return NextResponse.json({
             success: result.success,
             attempts: result.attempts,
             status: result.status,
             relayedAt: new Date().toISOString(),
-            sessionId: payload.sessionId,
+            sessionId: payload.sessionId ?? null,
+            relaySessionId,
             eventType: typeof payload.event === "object" && payload.event !== null
                 ? (payload.event as { type?: string }).type ?? null
                 : null,
@@ -39,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 }
 
-async function attemptRelayToOpenAI({ sessionId, event }: RelayPayload): Promise<{
+async function attemptRelayToOpenAI(sessionId: string, event: unknown): Promise<{
     success: boolean;
     attempts: number;
     status: number | null;
@@ -66,6 +73,7 @@ async function attemptRelayToOpenAI({ sessionId, event }: RelayPayload): Promise
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
+                    "OpenAI-Beta": "realtime=v1",
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(event),

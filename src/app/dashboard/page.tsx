@@ -1,16 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
-import { format, isToday } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, formatDistanceToNow } from "date-fns";
 import {
   ArrowRight,
-  CalendarDays,
-  CheckCircle2,
   Compass,
   Headphones,
-  Sparkles,
-  TrendingUp,
+  Mic,
+  NotebookPen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -24,18 +22,24 @@ import {
 import AuthLoading from "@/components/shared/AuthLoading";
 import { useAuth } from "@/lib/context/AuthContext";
 import { signOut } from "@/lib/appwrite/auth-new";
-import { useMoodCheckIns } from "@/lib/hooks/useMoodCheckIns";
+import { useRealtimeSessionStore } from "@/lib/stores/realtimeSessionStore";
+import type { SessionHistoryRecord } from "@/types/realtime";
 
 export default function DashboardPage() {
   const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
-  const { checkIns, fetchCheckIns, isLoading } = useMoodCheckIns();
-
-  useEffect(() => {
-    if (user) {
-      void fetchCheckIns("30days");
-    }
-  }, [user, fetchCheckIns]);
+  const exportPersistedHistory = useRealtimeSessionStore(
+    (state) => state.exportPersistedHistory
+  );
+  const historyCount = useRealtimeSessionStore(
+    (state) => state.historyTotalCount
+  );
+  const [recentSummary, setRecentSummary] = useState<Pick<
+    SessionHistoryRecord,
+    "summary" | "updatedAt" | "historyId"
+  > | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -43,18 +47,54 @@ export default function DashboardPage() {
     }
   }, [loading, user, router]);
 
-  const lastCheckIn = checkIns[0] ?? null;
-  const hasCheckedInToday = checkIns.some((entry) =>
-    isToday(new Date(entry.timestamp))
-  );
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
 
-  const averageMood = useMemo(() => {
-    if (!checkIns.length) return null;
-    const total = checkIns.reduce((sum, entry) => sum + entry.mood, 0);
-    return Math.round((total / checkIns.length) * 10) / 10;
-  }, [checkIns]);
+    setSummaryLoading(true);
+    setSummaryError(null);
 
-  if (loading || (!loading && !user)) {
+    exportPersistedHistory()
+      .then((record) => {
+        if (!record) {
+          setRecentSummary(null);
+          return;
+        }
+
+        setRecentSummary({
+          summary: record.summary,
+          updatedAt: record.updatedAt,
+          historyId: record.historyId,
+        });
+      })
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to load your last summary";
+        setSummaryError(message);
+      })
+      .finally(() => setSummaryLoading(false));
+  }, [user, exportPersistedHistory]);
+
+  const isAuthLoading = loading || !user;
+
+  const summaryTimestamp = useMemo(() => {
+    if (!recentSummary?.updatedAt) return null;
+    return formatDistanceToNow(new Date(recentSummary.updatedAt), {
+      addSuffix: true,
+    });
+  }, [recentSummary]);
+
+  const summaryPreview = useMemo(() => {
+    if (!recentSummary?.summary) return null;
+    return recentSummary.summary.length > 600
+      ? `${recentSummary.summary.slice(0, 600)}…`
+      : recentSummary.summary;
+  }, [recentSummary]);
+
+  if (isAuthLoading) {
     return <AuthLoading />;
   }
 
@@ -78,25 +118,17 @@ export default function DashboardPage() {
           </h1>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-primary">
-              Focus your next move
+              Clinician-guided voice support
             </span>
-            <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
-              <span className="rounded-full bg-primary/20 px-2 py-1 text-primary">
-                Log a mood
-              </span>
-              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                Talk things out
-              </span>
-              <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                Reset fast
-              </span>
-            </div>
+            <span className="text-xs sm:text-sm">
+              Start a live conversation or review the latest summary below.
+            </span>
           </div>
         </div>
         <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-0 sm:justify-end">
           <Link href="/onboarding">
             <Button variant="outline" className="w-full sm:w-auto">
-              <Sparkles className="mr-2 h-4 w-4" /> Tour
+              <ArrowRight className="mr-2 h-4 w-4" /> Get oriented
             </Button>
           </Link>
           <Link href="/guide">
@@ -110,165 +142,130 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="h-full border border-primary/20 bg-card/95 shadow-primary-glow">
-          <CardHeader className="flex flex-row items-start justify-between pb-2">
-            <div>
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Today&apos;s check-in
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2 border border-primary/20 bg-card/95 shadow-primary-glow">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Headphones className="h-5 w-5 text-primary" /> Start a voice
+                session
               </CardTitle>
-              <p className="mt-2 text-2xl font-semibold">
-                {hasCheckedInToday ? "Logged" : "Pending"}
-              </p>
+              <CardDescription>
+                The companion mirrors a veteran psychiatrist with a steady,
+                calming cadence.
+              </CardDescription>
             </div>
-            <CheckCircle2 className="h-6 w-6 text-primary" />
+            <Link href="/dashboard/companion">
+              <Button>Launch companion</Button>
+            </Link>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>
-              {hasCheckedInToday
-                ? "Nice streak—keep the rhythm."
-                : "Tap in once today to stay calibrated."}
+              Pick a single theme—sleep patterns, a difficult interaction, or a
+              stubborn worry—and speak naturally. The agent will prompt for
+              clarity, summarize the important points, and make sure you leave
+              with a grounded next step.
             </p>
-            <Link
-              href="/dashboard/mood"
-              className="inline-flex items-center font-medium text-primary hover:underline"
-            >
-              Open mood workspace <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                Push-to-talk keeps your microphone muted until you hold the
+                button.
+              </div>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                Captions stay on your device and refresh in real time.
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="h-full border bg-card/95 shadow-primary-glow">
-          <CardHeader className="flex flex-row items-start justify-between pb-2">
-            <div>
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Last entry
-              </CardTitle>
-              <p className="mt-2 text-2xl font-semibold">
-                {lastCheckIn
-                  ? ["😢", "😔", "😐", "🙂", "😊"][lastCheckIn.mood - 1]
-                  : "––"}
+        <Card className="border bg-card/95 shadow-primary-glow">
+          <CardHeader className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <NotebookPen className="h-5 w-5 text-primary" /> Latest summary
+            </CardTitle>
+            <CardDescription>
+              {summaryLoading
+                ? "Fetching your notes…"
+                : recentSummary
+                ? summaryTimestamp
+                  ? `Updated ${summaryTimestamp}`
+                  : "Recently saved"
+                : "No saved sessions yet"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {summaryError && (
+              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                {summaryError}
               </p>
-            </div>
-            <CalendarDays className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>
-              {lastCheckIn
-                ? format(new Date(lastCheckIn.timestamp), "MMM d · h:mma")
-                : "No check-ins yet."}
-            </p>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground/80">
-              {checkIns.length} in the last 30 days
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="h-full border bg-card/95 shadow-primary-glow">
-          <CardHeader className="flex flex-row items-start justify-between pb-2">
-            <div>
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Mood trend
-              </CardTitle>
-              <p className="mt-2 text-2xl font-semibold">
-                {averageMood !== null ? `${averageMood}/5` : "––"}
+            )}
+            {summaryPreview ? (
+              <p className="whitespace-pre-wrap text-sm text-foreground">
+                {summaryPreview}
               </p>
-            </div>
-            <TrendingUp className="h-6 w-6 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>
-              {averageMood !== null
-                ? "Steady over your selected range."
-                : "Log a few entries to unlock insights."}
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Summaries appear after you wrap a session and tap “Save
+                summary.” They capture risk checks, supportive interventions,
+                and the agreed next step.
+              </p>
+            )}
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+              {historyCount
+                ? `${historyCount} transcript turn${
+                    historyCount === 1 ? "" : "s"
+                  } in last saved session`
+                : "No transcripts saved yet"}
             </p>
-            <Link
-              href="/dashboard/mood#trends"
-              className="inline-flex items-center font-medium text-primary hover:underline"
-            >
-              View chart <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="h-full border bg-card/95 shadow-primary-glow">
-          <CardHeader className="flex flex-row items-start justify-between pb-2">
-            <div>
-              <CardTitle className="text-sm font-semibold text-muted-foreground">
-                Quick win
-              </CardTitle>
-              <p className="mt-2 text-2xl font-semibold">Replay tour</p>
-            </div>
-            <Sparkles className="h-6 w-6 text-primary" />
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Refresh the walkthrough to see what&apos;s new.</p>
-            <Link
-              href="/onboarding"
-              className="inline-flex items-center font-medium text-primary hover:underline"
-            >
-              Start tour <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
           </CardContent>
         </Card>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-1 border bg-card/95 shadow-primary-glow">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Card className="border bg-card/95 shadow-primary-glow">
           <CardHeader className="space-y-1">
-            <CardTitle>Log feelings</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Mic className="h-5 w-5 text-primary" /> Quick prep
+            </CardTitle>
             <CardDescription className="text-sm">
-              Capture mood, notes, and tags in under a minute.
+              Give the companion a clean signal and clear intention.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p className="inline-flex items-center gap-2 font-medium text-foreground">
-              <CalendarDays className="h-4 w-4 text-primary" /> Daily rhythm
-            </p>
-            <Link href="/dashboard/mood">
-              <Button variant="outline" className="mt-1">
-                Open mood tools
-              </Button>
-            </Link>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <ol className="space-y-2">
+              <li>1. Pop on headphones and confirm the correct microphone.</li>
+              <li>
+                2. Take two slow breaths before tapping “Start companion
+                session.”
+              </li>
+              <li>
+                3. Keep sentences conversational—the agent handles pauses and
+                restarts.
+              </li>
+            </ol>
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1 border bg-card/95 shadow-primary-glow">
+        <Card className="border bg-card/95 shadow-primary-glow">
           <CardHeader className="space-y-1">
-            <CardTitle>Go realtime</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ArrowRight className="h-5 w-5 text-primary" /> After the call
+            </CardTitle>
             <CardDescription className="text-sm">
-              Voice support with live guardrails and captions.
+              Close the loop while the insights are fresh.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p className="inline-flex items-center gap-2 font-medium text-foreground">
-              <Headphones className="h-4 w-4 text-primary" /> Guided
-              conversation
-            </p>
-            <Link href="/dashboard/companion">
-              <Button variant="outline" className="mt-1">
-                Launch companion
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1 border bg-card/95 shadow-primary-glow">
-          <CardHeader className="space-y-1">
-            <CardTitle>Reset fast</CardTitle>
-            <CardDescription className="text-sm">
-              Try grounding and breathing exercises curated for you.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p className="inline-flex items-center gap-2 font-medium text-foreground">
-              <Sparkles className="h-4 w-4 text-primary" /> Micro interventions
-            </p>
-            <Link href="/dashboard/interventions">
-              <Button variant="outline" className="mt-1">
-                Explore routines
-              </Button>
-            </Link>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <ul className="space-y-2">
+              <li>• Generate a clinical note in one click.</li>
+              <li>
+                • Save the summary or download a JSON copy for your records.
+              </li>
+              <li>
+                • Revisit the guide for escalation steps if new safety concerns
+                emerge.
+              </li>
+            </ul>
           </CardContent>
         </Card>
       </section>
@@ -289,12 +286,6 @@ export default function DashboardPage() {
           </Link>
         </div>
       </section>
-
-      {isLoading && (
-        <p className="text-sm text-muted-foreground">
-          Loading your recent activity…
-        </p>
-      )}
     </div>
   );
 }
